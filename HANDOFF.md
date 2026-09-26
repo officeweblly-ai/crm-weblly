@@ -83,10 +83,10 @@ npm run lint && npx tsc --noEmit && npm run test:db && npm run test:unit && npx 
 
 ## 7. State at handoff (2026-09-26)
 
-- Live Supabase project is migrated and seeded with: 3 questionnaire templates from the owner's spec
-  ("אתר תדמית — אפיון מלא", "חנות אונליין (E-commerce)", "מערכת / אפליקציית SaaS", each with a general link)
-  and **demo data** (`is_demo = true`, badge "נתוני דמו"; delete via Settings → "מחיקת נתוני הדמו" or `npm run seed:reset`).
-- The owner's own test template "אתר תדמית" (2 questions) and 1 real client exist — do not delete.
+- Production DB was wiped clean on 2026-09-27 at the owner's request. It contains ONLY: the 3 questionnaire
+  templates ("אתר תדמית — אפיון מלא", "חנות אונליין (E-commerce)", "מערכת / אפליקציית SaaS", each with a
+  general link), the 2 staff users and workspace settings. Everything created from now on is real data —
+  never run `npm run seed` (demo data) against production again.
 - Git: `main` on https://github.com/officeweblly-ai/crm-weblly (Vercel auto-deploys every push).
 - Production: https://crm-weblly-ix33.vercel.app (Vercel project `crm-weblly-ix33`, env vars set).
 - **Region:** the Supabase project is in **Tokyo (ap-northeast-1)** — measured ~316 ms per query from Israel.
