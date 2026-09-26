@@ -18,13 +18,13 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "סטודיו — ניהול לקוחות", template: "%s · סטודיו" },
+  title: { default: "weblly — ניהול לקוחות", template: "%s · weblly" },
   description: "מערכת לניהול לידים, לקוחות, פרויקטים, אפיונים ותשלומים לעסק לבניית אתרים.",
   robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f5f6f8",
+  themeColor: "#1c2034",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

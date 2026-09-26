@@ -233,6 +233,10 @@ export const settingsSchema = z.object({
   contact_email: optEmail,
   contact_phone: optPhone,
   form_intro: required("טקסט פתיחה", 2000),
+  legal_name: optText(200),
+  business_id: optText(50),
+  address: optText(300),
+  signatory_name: optText(200),
 });
 
 export const profileSchema = z.object({ full_name: required("שם", 120) });

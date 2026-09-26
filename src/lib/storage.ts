@@ -95,5 +95,5 @@ export function objectPath(prefix: string, originalName: string): string {
 }
 
 export const ACCEPT_IMAGES = IMAGE_MIME.join(",");
-export const ACCEPT_MEDIA = [...IMAGE_MIME, ...VIDEO_MIME, ".mov", ".mp4", ".heic"].join(",");
+export const ACCEPT_MEDIA = [...IMAGE_MIME, ...VIDEO_MIME, "application/pdf", ".pdf", ".mov", ".mp4", ".heic"].join(",");
 export const ACCEPT_ALL = [...ALLOWED_MIME, ...Object.keys(EXT_MIME).map((e) => `.${e}`)].join(",");

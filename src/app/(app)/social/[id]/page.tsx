@@ -65,7 +65,7 @@ export default async function AlbumPage({ params }: PageProps<"/social/[id]">) {
               <CardHeader title={<span className="flex items-center gap-2">{sec.label}<span className="rounded-full bg-sunken px-1.5 text-xs font-medium text-ink-3 num">{items.length}</span></span>} description={HINTS[sec.value]} />
               <CardBody className="flex flex-col gap-4">
                 {items.length > 0 && <FileGrid files={items} />}
-                <FileUploader category="social" albumId={album.id} albumSection={sec.value} accept={ACCEPT_MEDIA} compact hint="תמונות וסרטונים (MP4, MOV)" />
+                <FileUploader category="social" albumId={album.id} albumSection={sec.value} accept={ACCEPT_MEDIA} compact hint="תמונות, סרטונים (MP4, MOV) ו-PDF" />
               </CardBody>
             </Card>
           );

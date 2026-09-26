@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CheckCircle2, Link2Off } from "lucide-react";
 import { QuestionnaireForm } from "@/components/form/questionnaire-form";
 import { getPublicForm } from "@/lib/data/public";
+import { Logo } from "@/components/brand/logo";
 
 export const metadata: Metadata = {
   title: "שאלון אפיון",
@@ -32,7 +33,7 @@ export default async function PublicFormPage({ params, searchParams }: PageProps
                 ? "קיבלנו את כל התשובות. תודה! נחזור אליכם בקרוב עם הצעדים הבאים."
                 : "צרו איתנו קשר ונשלח קישור חדש."}
           </p>
-          {form.state === "closed" && form.businessName && <p className="mt-6 font-display text-base font-bold text-ink-2">{form.businessName}</p>}
+          <div className="mt-8 flex justify-center"><Logo size="sm" /></div>
         </div>
       </main>
     );

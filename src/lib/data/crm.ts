@@ -402,3 +402,43 @@ export async function getAlbum(id: string) {
   const { data: files } = await supabase.from("files").select("*, projects(id, name), clients(id, name)").eq("album_id", id).order("created_at");
   return { album, files: await withThumbs((files ?? []) as FileRow[]) };
 }
+
+/** Pre-fills a new agreement from the studio settings, the client and (optionally) a project. */
+export async function initialContract(clientId: string, projectId: string | null) {
+  const { defaultClauses, defaultScope } = await import("@/lib/domain/contracts");
+  const { projectType } = await import("@/lib/domain/labels");
+  const { todayISO } = await import("@/lib/format");
+  const supabase = await createClient();
+  const [{ data: ws }, { data: client }, { data: project }] = await Promise.all([
+    supabase.from("workspace_settings").select("*").maybeSingle(),
+    supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
+    projectId ? supabase.from("projects").select("*").eq("id", projectId).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  if (!client) return null;
+  const typeLabel = project ? projectType.label(project.project_type) : "אתר";
+  const base = {
+    studio: {
+      name: ws?.business_name ?? "weblly",
+      legal_name: ws?.legal_name ?? "",
+      business_id: ws?.business_id ?? "",
+      address: ws?.address ?? "",
+      phone: ws?.contact_phone ?? "",
+      email: ws?.contact_email ?? "",
+      signatory: ws?.signatory_name ?? "",
+    },
+    client: { name: client.name, business: client.business_name ?? "", business_id: "", address: "", phone: client.phone ?? "", email: client.email ?? "" },
+    project: {
+      name: project?.name ?? "",
+      type_label: typeLabel,
+      total: Number(project?.total_price ?? 0),
+      deposit: Number(project?.deposit_amount ?? 0),
+      vat_note: "בתוספת מע״מ כדין",
+      start_date: project?.start_date ?? "",
+      deadline: project?.deadline ?? "",
+    },
+  };
+  return {
+    title: `הסכם לבניית ${typeLabel}${client.business_name ? ` — ${client.business_name}` : ` — ${client.name}`}`,
+    content: { ...base, scope: defaultScope(typeLabel), clauses: defaultClauses(base), date: todayISO() },
+  };
+}

@@ -15,6 +15,7 @@ import {
   Files,
   Settings,
   Clapperboard,
+  FileSignature,
   Menu as MenuIcon,
   Plus,
   Search,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/menu";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 
@@ -51,11 +53,8 @@ function isActive(pathname: string, href: string) {
 
 function Brand({ name }: { name: string }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5 rounded-md px-1 py-1">
-      <span className="grid size-8 place-items-center rounded-md bg-ink font-display text-base font-bold text-white" aria-hidden>
-        {name.trim()[0] ?? "ס"}
-      </span>
-      <span className="truncate font-display text-lg font-bold leading-none text-ink">{name}</span>
+    <Link href="/" className="flex items-center rounded-md px-1 py-1" aria-label={`${name} — דשבורד`}>
+      <Logo size="md" />
     </Link>
   );
 }
@@ -110,7 +109,7 @@ function UserBlock({ name, email }: { name: string; email: string }) {
 
 export function Sidebar({ businessName, userName, email }: { businessName: string; userName: string; email: string }) {
   return (
-    <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-line bg-surface px-3 py-4 lg:flex">
+    <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-line bg-surface px-3 py-4 lg:flex print:hidden">
       <div className="px-1 pb-5">
         <Brand name={businessName} />
       </div>
@@ -159,6 +158,9 @@ export function QuickAdd({ compact }: { compact?: boolean }) {
       <MenuItem onSelect={() => router.push("/finances?new=1")}>
         <Wallet /> רישום תשלום
       </MenuItem>
+      <MenuItem onSelect={() => router.push("/contracts/new")}>
+        <FileSignature /> הסכם חדש
+      </MenuItem>
       <MenuItem onSelect={() => router.push("/social?new=1")}>
         <Clapperboard /> תיקיית סושיאל
       </MenuItem>
@@ -193,7 +195,7 @@ export function SearchBox({ className, autoFocus, onDone }: { className?: string
 export function TopBar({ businessName }: { businessName: string }) {
   const [searchOpen, setSearchOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur-sm print:hidden">
       <div className="flex h-14 items-center gap-3 px-4 lg:h-16 lg:px-8">
         <div className="lg:hidden">
           <Brand name={businessName} />
@@ -230,7 +232,7 @@ export function MobileNav({ businessName, userName, email }: { businessName: str
     <>
       <nav
         aria-label="ניווט ראשי"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm lg:hidden print:hidden"
       >
         <ul className="mx-auto grid max-w-lg grid-cols-5">
           {MOBILE_TABS.map(({ href, label, icon: Icon }) => {

@@ -120,6 +120,8 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          contract_number: string | null;
+          content: Json | null;
         };
         Insert: {
           id?: string;
@@ -137,6 +139,8 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          contract_number?: string | null;
+          content?: Json | null;
         };
         Update: {
           id?: string;
@@ -154,6 +158,8 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          contract_number?: string | null;
+          content?: Json | null;
         };
         Relationships: [
           { foreignKeyName: "contracts_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
@@ -837,6 +843,10 @@ export type Database = {
           form_intro: string;
           created_at: string;
           updated_at: string;
+          legal_name: string | null;
+          business_id: string | null;
+          address: string | null;
+          signatory_name: string | null;
         };
         Insert: {
           id?: boolean;
@@ -846,6 +856,10 @@ export type Database = {
           form_intro?: string;
           created_at?: string;
           updated_at?: string;
+          legal_name?: string | null;
+          business_id?: string | null;
+          address?: string | null;
+          signatory_name?: string | null;
         };
         Update: {
           id?: boolean;
@@ -855,6 +869,10 @@ export type Database = {
           form_intro?: string;
           created_at?: string;
           updated_at?: string;
+          legal_name?: string | null;
+          business_id?: string | null;
+          address?: string | null;
+          signatory_name?: string | null;
         };
         Relationships: [];
       };

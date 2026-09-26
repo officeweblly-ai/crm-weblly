@@ -9,6 +9,7 @@ import { formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { QuestionControl } from "./fields";
+import { Logo } from "@/components/brand/logo";
 
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "saved"; at: string } | { kind: "error" };
 
@@ -206,7 +207,7 @@ export function QuestionnaireForm({ token, title, businessName, intro, contact, 
   const Header = (
     <header className="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-2xl items-center justify-between gap-3 px-5">
-        <span className="truncate font-display text-lg font-bold text-ink">{businessName}</span>
+        <span className="flex items-center" aria-label={businessName}><Logo size="sm" /></span>
         {!preview && step >= 0 && !done && <SaveIndicator state={save} />}
         {preview && <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-xs font-medium text-warn">תצוגה מקדימה</span>}
       </div>

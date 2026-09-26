@@ -177,7 +177,17 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
           </Card>
 
           <Card>
-            <CardHeader title="חוזים" action={<ContractFormModal clientId={project.client_id} projects={projects} trigger={<Button size="sm" variant="secondary"><Plus aria-hidden />חוזה</Button>} />} />
+            <CardHeader
+              title="חוזים"
+              action={
+                <>
+                  <Button asChild size="sm">
+                    <Link href={`/contracts/new?client=${project.client_id}&project=${project.id}`}>יצירת הסכם</Link>
+                  </Button>
+                  <ContractFormModal clientId={project.client_id} projects={projects} trigger={<Button size="sm" variant="secondary"><Plus aria-hidden />קובץ</Button>} />
+                </>
+              }
+            />
             {contracts.length ? <ContractList contracts={contracts} projects={projects} /> : <p className="px-5 py-4 text-sm text-ink-3">אין חוזים לפרויקט.</p>}
           </Card>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -153,7 +154,8 @@ function ContractItem({ c, projects }: { c: ContractRow; projects: Opt[] }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-ink">{c.title}</span>
+          <Link href={`/contracts/${c.id}`} className="font-medium text-ink hover:text-accent">{c.title}</Link>
+          {c.contract_number && <bdi dir="ltr" className="text-xs text-ink-3">{c.contract_number}</bdi>}
           <Badge tone={contractStatus.tone(c.status)}>{contractStatus.label(c.status)}</Badge>
         </div>
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-ink-3">

@@ -29,6 +29,20 @@ export function WorkspaceForm({ settings, canEdit }: { settings: Tables<"workspa
             {(p) => <LtrInput {...p} name="contact_email" type="email" defaultValue={settings.contact_email ?? ""} />}
           </Field>
         </FormGrid>
+        <FormGrid>
+          <Field label="שם משפטי (להסכמים)" hint="כפי שמופיע ברשם — מודפס בראש כל הסכם" error={errors.legal_name}>
+            {(p) => <Input {...p} name="legal_name" defaultValue={settings.legal_name ?? ""} />}
+          </Field>
+          <Field label="ח.פ / ע.מ" error={errors.business_id}>
+            {(p) => <LtrInput {...p} name="business_id" defaultValue={settings.business_id ?? ""} />}
+          </Field>
+          <Field label="כתובת העסק" error={errors.address}>
+            {(p) => <Input {...p} name="address" defaultValue={settings.address ?? ""} />}
+          </Field>
+          <Field label="שם החותם מטעם הסטודיו" error={errors.signatory_name}>
+            {(p) => <Input {...p} name="signatory_name" defaultValue={settings.signatory_name ?? ""} />}
+          </Field>
+        </FormGrid>
         <Field label="טקסט פתיחה בשאלון" required hint="הלקוח רואה אותו במסך הפתיחה של כל שאלון." error={errors.form_intro}>
           {(p) => <Textarea {...p} name="form_intro" rows={4} defaultValue={settings.form_intro} />}
         </Field>

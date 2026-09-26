@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Link2Off } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { StartQuestionnaire } from "./start";
+import { Logo } from "@/components/brand/logo";
 
 export const metadata: Metadata = { title: "שאלון אפיון", robots: { index: false, follow: false }, referrer: "no-referrer" };
 
@@ -38,7 +39,7 @@ export default async function PublicTemplatePage({ params }: PageProps<"/q/[toke
     <div className="min-h-dvh bg-paper">
       <header className="border-b border-line">
         <div className="mx-auto flex h-14 max-w-2xl items-center px-5">
-          <span className="truncate text-lg font-bold text-ink">{ws?.business_name}</span>
+          <Logo size="sm" />
         </div>
       </header>
       <main className="mx-auto max-w-2xl px-5 pb-16 pt-12 sm:pt-20">

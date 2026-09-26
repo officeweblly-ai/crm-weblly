@@ -272,13 +272,18 @@ export async function Finances({ clientId, financials }: { clientId: string; fin
 // ---------------------------------------------------------------------------
 export async function Contracts({ clientId, projects }: { clientId: string; projects: Opt[] }) {
   const contracts = await listContracts({ clientId });
-  const add = <ContractFormModal clientId={clientId} projects={projects} trigger={<Button size="sm"><Plus aria-hidden />העלאת חוזה</Button>} />;
+  const add = <ContractFormModal clientId={clientId} projects={projects} trigger={<Button size="sm" variant="secondary"><Plus aria-hidden />העלאת קובץ</Button>} />;
+  const create = (
+    <Button asChild size="sm">
+      <Link href={`/contracts/new?client=${clientId}`}><FileSignature aria-hidden />יצירת הסכם</Link>
+    </Button>
+  );
   return (
-    <Panel title="חוזים והסכמים" action={add} flush>
+    <Panel title="חוזים והסכמים" action={<>{add}{create}</>} flush>
       {contracts.length ? (
         <ContractList contracts={contracts} projects={projects} />
       ) : (
-        <EmptyState compact icon={FileSignature} title="אין חוזים" description="העלה את הסכם העבודה — טיוטה או חתום — כדי שיהיה תמיד בהישג יד." action={add} />
+        <EmptyState compact icon={FileSignature} title="אין חוזים" description="צור הסכם עבודה ממותג עם כל הפרטים של הלקוח והפרויקט — או העלה הסכם קיים." action={<div className="flex gap-2">{create}{add}</div>} />
       )}
     </Panel>
   );
