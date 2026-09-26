@@ -16,7 +16,8 @@
     "seed:reset": "tsx scripts/seed.ts reset",
     "create-admin": "tsx scripts/create-admin.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "set-password": "tsx scripts/set-password.ts"
+    "set-password": "tsx scripts/set-password.ts",
+    "templates:add-design": "tsx scripts/templates-add-design.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

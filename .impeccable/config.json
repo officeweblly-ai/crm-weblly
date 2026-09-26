@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-09-26T21:45:08.259Z",
+        "reason": "Claude: WEBLLY wordmark reproduces the official weblly logo artwork supplied by the user, which is set in Arial/Helvetica Bold"
+      }
+    ]
+  }
+}

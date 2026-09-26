@@ -12,6 +12,7 @@ import { config } from "dotenv";
 import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import type { Database, Json } from "../src/lib/supabase/database.types";
+import { DESIGN_STEP } from "./design-step";
 
 config({ path: ".env.local" });
 config();
@@ -63,6 +64,8 @@ const contactSection = (businessLabel: string) => ({
     { key: "phone", type: "phone", label: "מספר טלפון", required: true, maps_to: "client.phone" },
   ] as Q[],
 });
+
+const designSection = DESIGN_STEP as unknown as Tpl["sections"][number];
 
 const TEMPLATES: Tpl[] = [
   {
@@ -151,7 +154,8 @@ function optionValueFor(t: Tpl, when: NonNullable<Q["when"]>): string | null {
 
 async function seedTemplates(isDemo: boolean) {
   const created: string[] = [];
-  for (const t of TEMPLATES) {
+  for (const base of TEMPLATES) {
+    const t = { ...base, sections: [...base.sections, designSection] };
     const { data: existing } = await db.from("form_templates").select("id").eq("name", t.name).maybeSingle();
     if (existing) {
       console.log(`  template "${t.name}" exists — skipped`);

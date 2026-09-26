@@ -91,7 +91,8 @@ npm run lint && npx tsc --noEmit && npm run test:db && npm run test:unit && npx 
 
 - Production DB was wiped clean on 2026-09-27 at the owner's request. It contains ONLY: the 3 questionnaire
   templates ("אתר תדמית — אפיון מלא", "חנות אונליין (E-commerce)", "מערכת / אפליקציית SaaS", each with a
-  general link), the 2 staff users and workspace settings. Everything created from now on is real data —
+  general link; each ends with the shared "עיצוב, תחושה וקופי" step from `scripts/design-step.ts`,
+  added via `npm run templates:add-design`), the 2 staff users and workspace settings. Everything created from now on is real data —
   never run `npm run seed` (demo data) against production again.
 - Git: `main` on https://github.com/officeweblly-ai/crm-weblly (Vercel auto-deploys every push).
 - Production: https://crm-weblly-ix33.vercel.app (Vercel project `crm-weblly-ix33`, env vars set).
