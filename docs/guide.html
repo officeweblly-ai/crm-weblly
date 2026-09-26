@@ -30,9 +30,15 @@
   .tip strong { color: var(--accent); }
   .shot { margin: 3mm 0 5mm; border: 1px solid var(--line); border-radius: 2mm; overflow: hidden; box-shadow: 0 2px 8px rgba(20,24,36,.08); }
   .shot img { display:block; width:100%; }
-  .shot.phone { width: 62mm; }
+  .shot.phone { width: 58mm; flex-shrink: 0; }
+  figure { margin: 0; }
+  .pair { break-inside: avoid; }
+  .shot { break-inside: avoid; }
   .pair { display:flex; gap:6mm; align-items:flex-start; }
   .caption { font-size: 8.5pt; color: var(--ink3); margin-top: -3mm; margin-bottom: 5mm; }
+  ol.toc { list-style: none; padding: 0; counter-reset: t; }
+  ol.toc li { counter-increment: t; }
+  ol.toc li::before { content: counter(t) "."; display: inline-block; width: 7mm; color: var(--ink3); }
   table { width:100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9.5pt; }
   th, td { border-bottom: 1px solid var(--line); padding: 1.8mm 2mm; text-align: start; vertical-align: top; }
   th { color: var(--ink3); font-weight: 500; background: var(--paper); }
@@ -83,7 +89,7 @@
   <div class="tip"><strong>סנכרון:</strong> כל מי שבצוות עובד על אותם נתונים. לקוח שהשותפה עדכנה, קובץ שהיא העלתה או תשלום שנרשם — מופיעים אצלך מיד כשהעמוד נטען. אין צורך להעביר דברים בוואטסאפ.</div>
   <h3>בטלפון</h3>
   <p>המערכת בנויה גם לטלפון: בתחתית המסך יש סרגל עם דשבורד, לקוחות, פרויקטים ומשימות, ובכפתור <strong>עוד</strong> נמצאים כל שאר האזורים. כפתור ה־<strong>+</strong> למעלה פותח יצירה מהירה (ליד, לקוח, פרויקט, שאלון, משימה, תשלום, תיקיית סושיאל).</p>
-  <!--SHOT:login-->
+  <div class="pair"><div><figure class="shot phone"><img src="shots/m-dashboard.png" alt="הדשבורד בטלפון"/></figure><p class="caption">הדשבורד בטלפון</p></div><div><figure class="shot phone"><img src="shots/m-client.png" alt="תיק לקוח בטלפון"/></figure><p class="caption">תיק לקוח בטלפון</p></div></div>
 </section>
 
 <section>
@@ -99,7 +105,7 @@
     <tr><td>משימות באיחור</td><td>משימות שתאריך היעד שלהן עבר</td></tr>
   </table>
   <p>מתחת לכרטיסים: פרויקטים פעילים, משימות קרובות, לידים למעקב, לקוחות אחרונים ופעילות אחרונה.</p>
-  <!--SHOT:dashboard-->
+  <figure class="shot"><img src="shots/dashboard.png" alt="הדשבורד — כל כרטיס פותח את הרשימה שמאחוריו"/></figure><p class="caption">הדשבורד — כל כרטיס פותח את הרשימה שמאחוריו</p>
 </section>
 
 <section>
@@ -111,7 +117,7 @@
   </ul>
   <h3>הפיכת ליד ללקוח</h3>
   <p>בעמוד הליד לוחצים <strong>הפוך ללקוח</strong>. המערכת פותחת תיק לקוח ופרויקט עם כל הפרטים שכבר הוזנו — בלי להקליד שוב. אם כבר קיים לקוח עם אותו טלפון או אימייל, הליד מצורף אליו ולא נוצרת כפילות.</p>
-  <!--SHOT:leads-->
+  <figure class="shot"><img src="shots/leads.png" alt="רשימת הלידים עם סטטוס, מקור ותאריך מעקב"/></figure><p class="caption">רשימת הלידים עם סטטוס, מקור ותאריך מעקב</p>
 </section>
 
 <section>
@@ -129,7 +135,7 @@
   <p>משנים סטטוס בלחיצה על התגית ליד שם הלקוח בראש התיק. ברשימה אפשר לסנן: לקוחות נוכחיים, לקוחות עבר, או הכול.</p>
   <h3>תיק הלקוח</h3>
   <p>פותחים לקוח ורואים הכול במקום אחד. הלשוניות: <strong>סקירה · אפיון · פרויקטים · כספים · חוזים · קבצים · משימות · הערות · היסטוריה</strong>. בסקירה: שלב הפרויקט, <strong>הפעולה הבאה</strong>, כמה שולם וכמה נשאר, מצב השאלון, משימות פתוחות וקבצים חשובים.</p>
-  <!--SHOT:client-->
+  <figure class="shot"><img src="shots/clients.png" alt="רשימת הלקוחות — פרויקט נוכחי, שלב, אפיון ויתרה"/></figure><p class="caption">רשימת הלקוחות — פרויקט נוכחי, שלב, אפיון ויתרה</p><figure class="shot"><img src="shots/client.png" alt="תיק לקוח — סקירה: שלב, הפעולה הבאה, שולם ויתרה"/></figure><p class="caption">תיק לקוח — סקירה: שלב, הפעולה הבאה, שולם ויתרה</p>
 </section>
 
 <section>
@@ -140,7 +146,7 @@
   <h3>לוח הקנבן</h3>
   <p>בעמוד הפרויקטים לוחצים <strong>לוח</strong>. כל עמודה היא שלב. גוררים כרטיס לעמודה אחרת — והשלב מתעדכן במערכת. בטלפון: לוחצים לחיצה ארוכה על כרטיס וגוררים, או משתמשים בכפתור ההעברה שעל הכרטיס.</p>
   <div class="tip"><strong>צ׳קליסט מוכן:</strong> בעמוד פרויקט, ב"משימות" יש כפתור "צ׳קליסט מוכן" — קבלת לוגו, עיצוב דסקטופ, התאמה למובייל, חיבור דומיין, SEO ועוד. מסמנים רק מה שרלוונטי.</div>
-  <!--SHOT:kanban-->
+  <figure class="shot"><img src="shots/kanban.png" alt="לוח הפרויקטים — גוררים כרטיס כדי לשנות שלב"/></figure><p class="caption">לוח הפרויקטים — גוררים כרטיס כדי לשנות שלב</p><figure class="shot"><img src="shots/project.png" alt="עמוד פרויקט — שלב, תשלומים, משימות וקבצים"/></figure><p class="caption">עמוד פרויקט — שלב, תשלומים, משימות וקבצים</p>
 </section>
 
 <section>
@@ -160,7 +166,7 @@
     <li>הכול נרשם בהיסטוריה ומופיע בדשבורד.</li>
   </ol>
   <p>הלקוח לא צריך להירשם. הטופס מחולק לשלבים, נוח בטלפון, ונשמר אוטומטית — אפשר לעצור ולחזור מאותו קישור. בתשובות אפשר להוסיף הערות פנימיות; התשובה המקורית של הלקוח לא משתנה.</p>
-  <!--SHOT:questionnaire-->
+  <figure class="shot"><img src="shots/questionnaires.png" alt="התבניות — כל אחת עם "קישור כללי""/></figure><p class="caption">התבניות — כל אחת עם "קישור כללי"</p><figure class="shot"><img src="shots/builder.png" alt="בונה השאלונים — כאן מגדירים "בחירה עד 2", חובה ותנאי הצגה"/></figure><p class="caption">בונה השאלונים — כאן מגדירים "בחירה עד 2", חובה ותנאי הצגה</p><div class="pair"><div><figure class="shot phone"><img src="shots/m-form.png" alt="מה שהלקוח רואה בטלפון"/></figure><p class="caption">מה שהלקוח רואה בטלפון</p></div><div style="flex:1"><figure class="shot"><img src="shots/answers.png" alt="התשובות בתוך המערכת, מסודרות לפי שלבים"/></figure><p class="caption">התשובות בתוך המערכת, מסודרות לפי שלבים</p></div></div>
 </section>
 
 <section>
@@ -176,7 +182,7 @@
   <p>הקבצים מוצגים מסודרים לפי קטגוריה, עם תצוגה מקדימה לתמונות, PDF וסרטונים, והורדה בלחיצה. עד 50MB לקובץ.</p>
   <h3>חוזים</h3>
   <p>בלשונית <strong>חוזים</strong> מעלים את הקובץ ושומרים שם, תאריך, סטטוס (טיוטה / נשלח לחתימה / נחתם / בוטל) והאם נחתם.</p>
-  <!--SHOT:files-->
+  
 </section>
 
 <section>
@@ -187,7 +193,7 @@
     <li><strong>עריכה ומחיקה</strong> של תשלום מעדכנות מיד את "שולם" ו"יתרה" בכל המקומות.</li>
     <li>בעמוד <strong>כספים</strong>: הכנסות החודש, יתרות פתוחות, היסטוריית תשלומים עם סינון לפי חודש ואמצעי, ו"יתרות לגבייה" — מי חייב כמה.</li>
   </ul>
-  <!--SHOT:finances-->
+  <figure class="shot"><img src="shots/finances.png" alt="כספים — הכנסות, יתרות והיסטוריית תשלומים"/></figure><p class="caption">כספים — הכנסות, יתרות והיסטוריית תשלומים</p>
 </section>
 
 <section>
@@ -203,7 +209,7 @@
     <tr><td>מאחורי הקלעים</td><td>אתם מול המחשב, שיחות, הסטודיו</td></tr>
   </table>
   <p>לתיקייה יש סטטוס (אוספים חומרים · בעריכה · פורסם), רעיון לסרטון והערות לעריכה. מי שעורך את הסרטונים נכנס לתיקייה, רואה הכול ומוריד.</p>
-  <!--SHOT:social-->
+  <figure class="shot"><img src="shots/album.png" alt="תיקיית סושיאל — חלקים לתהליך, לפני/אחרי ותוצר סופי"/></figure><p class="caption">תיקיית סושיאל — חלקים לתהליך, לפני/אחרי ותוצר סופי</p><figure class="shot"><img src="shots/social.png" alt="כל התיקיות"/></figure><p class="caption">כל התיקיות</p>
 </section>
 
 <section>

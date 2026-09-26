@@ -87,10 +87,17 @@ npm run lint && npx tsc --noEmit && npm run test:db && npm run test:unit && npx 
   ("אתר תדמית — אפיון מלא", "חנות אונליין (E-commerce)", "מערכת / אפליקציית SaaS", each with a general link)
   and **demo data** (`is_demo = true`, badge "נתוני דמו"; delete via Settings → "מחיקת נתוני הדמו" or `npm run seed:reset`).
 - The owner's own test template "אתר תדמית" (2 questions) and 1 real client exist — do not delete.
-- Git: committed locally on `main`. Push to `https://github.com/officeweblly-ai/crm-weblly.git` failed (403: the machine's
-  GitHub credential is user `mizrahi854`, which lacks access to the `officeweblly-ai` org). Owner must grant access or push via GitHub Desktop.
-- Not deployed yet. Next: Vercel (import the GitHub repo, add the 4 env vars except `SUPABASE_DB_URL`, set
-  `NEXT_PUBLIC_SITE_URL` to the production URL, then add that URL in Supabase → Auth → URL Configuration).
+- Git: `main` on https://github.com/officeweblly-ai/crm-weblly (Vercel auto-deploys every push).
+- Production: https://crm-weblly-ix33.vercel.app (Vercel project `crm-weblly-ix33`, env vars set).
+- **Region:** the Supabase project is in **Tokyo (ap-northeast-1)** — measured ~316 ms per query from Israel.
+  `vercel.json` pins functions to `hnd1` (Tokyo) so server↔DB latency is ~2 ms. If the DB is ever moved to
+  Frankfurt (recommended for Israeli users), change `vercel.json` regions to `fra1`.
+- Staff: yanimizrahi@gmail.com (owner), office.weblly@gmail.com (admin).
+- `npm run set-password -- <email>` sets a password with hidden terminal input (never pass passwords in chat).
+- Docs for the owner: `docs/מדריך-למערכת-weblly.pdf` (built from `docs/guide.html` + `docs/shots/`),
+  `docs/תסריט-טיקטוק.pdf` (from `docs/tiktok-script.md`). Rebuild with headless Chrome `--print-to-pdf`.
+- Testing note: the in-app preview browser freezes requestAnimationFrame when hidden, so React streaming
+  boundaries never reveal there — that is an environment artifact, not an app bug.
 - The third template in the owner's spec (SaaS) was truncated after question 8 in the source text; implemented Q1–8.
 
 ## 8. Ideas not built (ask the owner before building)
