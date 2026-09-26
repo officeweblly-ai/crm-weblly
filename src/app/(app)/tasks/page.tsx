@@ -28,8 +28,8 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const q = first(sp.q);
   const [tasks, projects] = await Promise.all([listTasks({ status, due, q }), projectOptions()]);
 
-  const add = (
-    <TaskFormModal projects={projects} defaultOpen={first(sp.new) === "1"} closeHref="/tasks" trigger={<Button><Plus aria-hidden />משימה חדשה</Button>} />
+  const add = (autoOpen = false) => (
+    <TaskFormModal projects={projects} defaultOpen={autoOpen && first(sp.new) === "1"} closeHref="/tasks" trigger={<Button><Plus aria-hidden />משימה חדשה</Button>} />
   );
   const groups =
     status === "open"
@@ -38,7 +38,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
 
   return (
     <>
-      <PageHeader title="משימות" description="מה צריך לקרות, בכל הפרויקטים." actions={add} />
+      <PageHeader title="משימות" description="מה צריך לקרות, בכל הפרויקטים." actions={add(true)} />
       <ListToolbar
         searchPlaceholder="חיפוש משימה"
         filters={[
@@ -52,7 +52,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             icon={ListChecks}
             title={q || due || status !== "open" ? "אין משימות שמתאימות לסינון" : "אין משימות פתוחות"}
             description={q || due || status !== "open" ? "נסה לשנות את הסינון." : "הכול בוצע. משימות חדשות אפשר להוסיף מכאן או מתוך פרויקט — כולל צ׳קליסט מוכן."}
-            action={q || due || status !== "open" ? undefined : add}
+            action={q || due || status !== "open" ? undefined : add()}
           />
         </Card>
       ) : (

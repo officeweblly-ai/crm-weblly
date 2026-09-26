@@ -29,11 +29,13 @@ export default async function FinancesPage({ searchParams }: PageProps<"/finance
   const receivedAll = (totals ?? []).reduce((s, r) => s + Number(r.amount_paid), 0);
   const projectOpts = projects.map((p) => ({ value: p.id, label: `${p.name} · ${p.client?.name ?? ""}`, balance: p.financials?.balance_due }));
 
-  const add = <PaymentFormModal projects={projectOpts} defaultOpen={first(sp.new) === "1"} closeHref="/finances" trigger={<Button><Plus aria-hidden />רישום תשלום</Button>} />;
+  const add = (autoOpen = false) => (
+    <PaymentFormModal projects={projectOpts} defaultOpen={autoOpen && first(sp.new) === "1"} closeHref="/finances" trigger={<Button><Plus aria-hidden />רישום תשלום</Button>} />
+  );
 
   return (
     <>
-      <PageHeader title="כספים" description="מעקב תשלומים ויתרות. כל הסכומים מחושבים מהתשלומים שנרשמו." actions={add} />
+      <PageHeader title="כספים" description="מעקב תשלומים ויתרות. כל הסכומים מחושבים מהתשלומים שנרשמו." actions={add(true)} />
       <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="הכנסות החודש" value={<bdi dir="ltr">{formatMoney(metrics.revenue_this_month)}</bdi>} />
         <StatCard label="החודש הקודם" value={<bdi dir="ltr">{formatMoney(metrics.revenue_last_month)}</bdi>} />
@@ -45,7 +47,7 @@ export default async function FinancesPage({ searchParams }: PageProps<"/finance
         active={view}
         hrefFor={(k) => (k === "payments" ? "/finances" : "/finances?view=outstanding")}
       />
-      {view === "payments" ? <Payments sp={sp} add={add} hasProjects={projects.length > 0} /> : <Outstanding projects={projects} />}
+      {view === "payments" ? <Payments sp={sp} add={add()} hasProjects={projects.length > 0} /> : <Outstanding projects={projects} />}
     </>
   );
 }

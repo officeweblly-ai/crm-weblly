@@ -22,12 +22,12 @@ export default async function QuestionnairesPage({ searchParams }: PageProps<"/q
   const tab = first(sp.tab) === "templates" ? "templates" : "requests";
   const [templates, clients, projects] = await Promise.all([templateOptions(), clientOptions(), projectOptions()]);
 
-  const send = (
+  const send = (autoOpen = false) => (
     <SendQuestionnaireModal
       templates={templates}
       clients={clients}
       projects={projects}
-      defaultOpen={first(sp.new) === "1"}
+      defaultOpen={autoOpen && first(sp.new) === "1"}
       closeHref="/questionnaires"
       trigger={<Button><Send aria-hidden />שליחת שאלון</Button>}
     />
@@ -38,7 +38,7 @@ export default async function QuestionnairesPage({ searchParams }: PageProps<"/q
       <PageHeader
         title="שאלוני אפיון"
         description="תבניות לשימוש חוזר, וקישורים אישיים שהלקוחות ממלאים בלי להירשם."
-        actions={tab === "templates" ? <TemplateFormModal trigger={<Button><FilePlus2 aria-hidden />תבנית חדשה</Button>} /> : send}
+        actions={tab === "templates" ? <TemplateFormModal trigger={<Button><FilePlus2 aria-hidden />תבנית חדשה</Button>} /> : send(true)}
       />
       <LinkTabs
         tabs={[
@@ -48,7 +48,7 @@ export default async function QuestionnairesPage({ searchParams }: PageProps<"/q
         active={tab}
         hrefFor={(k) => (k === "requests" ? "/questionnaires" : "/questionnaires?tab=templates")}
       />
-      {tab === "requests" ? <Requests sp={sp} send={send} hasTemplates={templates.length > 0} /> : <Templates />}
+      {tab === "requests" ? <Requests sp={sp} send={send()} hasTemplates={templates.length > 0} /> : <Templates />}
     </>
   );
 }

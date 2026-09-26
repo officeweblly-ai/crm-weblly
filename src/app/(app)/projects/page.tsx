@@ -39,10 +39,10 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
       ))}
     </div>
   );
-  const newProject = (
+  const newProject = (autoOpen = false) => (
     <ProjectFormModal
       clients={clients}
-      defaultOpen={first(sp.new) === "1"}
+      defaultOpen={autoOpen && first(sp.new) === "1"}
       closeHref="/projects"
       trigger={
         <Button>
@@ -57,12 +57,12 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
     const projects = await boardProjects();
     return (
       <>
-        <PageHeader title="לוח פרויקטים" description="גרור כרטיס לעמודה אחרת כדי לעדכן את שלב הפרויקט." actions={<>{toggle}{newProject}</>} />
+        <PageHeader title="לוח פרויקטים" description="גרור כרטיס לעמודה אחרת כדי לעדכן את שלב הפרויקט." actions={<>{toggle}{newProject(true)}</>} />
         {projects.length ? (
           <KanbanBoard projects={projects} />
         ) : (
           <div className="rounded-lg border border-dashed border-line-strong bg-surface">
-            <EmptyState icon={FolderKanban} title="אין פרויקטים על הלוח" description="פרויקט חדש מופיע כאן בעמודת 'ליד' וזז ימינה עד 'הסתיים'." action={newProject} />
+            <EmptyState icon={FolderKanban} title="אין פרויקטים על הלוח" description="פרויקט חדש מופיע כאן בעמודת 'ליד' וזז ימינה עד 'הסתיים'." action={newProject()} />
           </div>
         )}
       </>
@@ -75,7 +75,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
 
   return (
     <>
-      <PageHeader title="פרויקטים" description="כל העבודות — משלב הליד ועד המסירה." actions={<>{toggle}{newProject}</>} />
+      <PageHeader title="פרויקטים" description="כל העבודות — משלב הליד ועד המסירה." actions={<>{toggle}{newProject(true)}</>} />
       <ListToolbar
         searchPlaceholder="חיפוש פרויקט"
         filters={[
@@ -103,7 +103,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           {filtered ? (
             <EmptyState icon={FolderKanban} title="אין פרויקטים שמתאימים לסינון" description="נסה לשנות את הסינון." />
           ) : (
-            <EmptyState icon={FolderKanban} title="עוד אין פרויקטים" description={clients.length ? "פתח פרויקט ללקוח קיים — עם מחיר, מקדמה ויעד." : "קודם יוצרים לקוח (או ממירים ליד), ואז פותחים לו פרויקט."} action={clients.length ? newProject : <Button asChild><Link href="/clients?new=1">יצירת לקוח</Link></Button>} />
+            <EmptyState icon={FolderKanban} title="עוד אין פרויקטים" description={clients.length ? "פתח פרויקט ללקוח קיים — עם מחיר, מקדמה ויעד." : "קודם יוצרים לקוח (או ממירים ליד), ואז פותחים לו פרויקט."} action={clients.length ? newProject() : <Button asChild><Link href="/clients?new=1">יצירת לקוח</Link></Button>} />
           )}
         </div>
       ) : (

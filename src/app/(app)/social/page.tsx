@@ -15,19 +15,20 @@ export const metadata = { title: "סושיאל" };
 export default async function SocialPage({ searchParams }: PageProps<"/social">) {
   const sp = await searchParams;
   const [albums, clients, projects] = await Promise.all([listAlbums(), clientOptions(), projectOptions()]);
-  const add = (
-    <AlbumFormModal clients={clients} projects={projects} defaultOpen={first(sp.new) === "1"} trigger={<Button><FolderPlus aria-hidden />תיקייה חדשה</Button>} />
+  // Only the header instance auto-opens (?new=1); the empty-state copy must not, or two dialogs open.
+  const add = (autoOpen = false) => (
+    <AlbumFormModal clients={clients} projects={projects} defaultOpen={autoOpen && first(sp.new) === "1"} trigger={<Button><FolderPlus aria-hidden />תיקייה חדשה</Button>} />
   );
   return (
     <>
-      <PageHeader title="סושיאל" description="חומרים מתהליך הבנייה — לכל עבודה תיקייה משלה, ומשם יוצאים הסרטונים לטיקטוק ולאינסטגרם." actions={add} />
+      <PageHeader title="סושיאל" description="חומרים מתהליך הבנייה — לכל עבודה תיקייה משלה, ומשם יוצאים הסרטונים לטיקטוק ולאינסטגרם." actions={add(true)} />
       {albums.length === 0 ? (
         <Card>
           <EmptyState
             icon={Clapperboard}
             title="עוד אין תיקיות"
             description="פותחים תיקייה לכל עבודה (למשל: בניית מערכת CRM ללקוח), מעלים אליה צילומי מסך וסרטונים מהתהליך — ומי שעורך את הסרטונים מוריד מכאן."
-            action={add}
+            action={add()}
           />
         </Card>
       ) : (
