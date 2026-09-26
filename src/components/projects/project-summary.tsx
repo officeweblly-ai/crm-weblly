@@ -7,9 +7,16 @@ import { daysUntil, formatDate, relativeDue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ProjectWithMoney } from "@/lib/data/crm";
 
-export function Deadline({ date, done }: { date: string | null; done?: boolean }) {
+export function Deadline({ date, done, compact }: { date: string | null; done?: boolean; compact?: boolean }) {
   if (!date) return <span className="text-ink-3">ללא יעד</span>;
   const d = daysUntil(date) ?? 0;
+  if (compact) {
+    return (
+      <span className={cn(!done && d < 0 && "font-medium text-danger", !done && d >= 0 && d <= 7 && "font-medium text-warn")} title={formatDate(date)}>
+        {d < 0 && !done ? `באיחור ${-d} ימים` : relativeDue(date)}
+      </span>
+    );
+  }
   return (
     <span className={cn(!done && d < 0 && "font-medium text-danger", !done && d >= 0 && d <= 7 && "font-medium text-warn")}>
       {formatDate(date)}

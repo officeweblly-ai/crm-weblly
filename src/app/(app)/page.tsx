@@ -77,8 +77,7 @@ export default async function DashboardPage() {
           hint={
             n("revenue_last_month") > 0 || n("revenue_this_month") > 0 ? (
               <>
-                {revenueDelta >= 0 ? "+" : "−"}
-                <bdi dir="ltr">{formatMoney(Math.abs(revenueDelta))}</bdi> מול החודש הקודם
+                <bdi dir="ltr">{`${revenueDelta >= 0 ? "+" : "−"}${formatMoney(Math.abs(revenueDelta))}`}</bdi> מול החודש הקודם
               </>
             ) : (
               "לפי תאריכי התשלומים שנרשמו"
@@ -138,7 +137,7 @@ export default async function DashboardPage() {
                         </div>
                         <div className="flex shrink-0 items-center gap-3 text-xs">
                           <Badge tone={projectStatus.tone(p.status)}>{projectStatus.label(p.status)}</Badge>
-                          <span className="w-28 text-ink-3 sm:text-end"><Deadline date={p.deadline} /></span>
+                          <span className="whitespace-nowrap text-ink-3 sm:w-24 sm:text-end"><Deadline date={p.deadline} compact /></span>
                         </div>
                       </Link>
                     </li>
