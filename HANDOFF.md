@@ -59,7 +59,13 @@ Patterns to follow:
   server-side validation, **submission auto-creates client (dedupe) + project** (`finalize_questionnaire`).
 - Payments (tracking only), finances page, outstanding balances.
 - Files: private bucket `crm-files` (50 MB, images/video/docs), categories incl. **references (רפרנסים)**, **site_texts (טקסטים לאתר)**, contracts; grouped by category.
-- Contracts (upload + status + signed date). Notes. Activity timeline (DB triggers).
+- Contracts: upload a file, **or generate a branded agreement** (`/contracts/new?client=&project=`): editor + live
+  preview, frozen JSON content (`contracts.content`, schema in `src/lib/domain/contracts.ts`), number `WB-YYYY-NNN`,
+  print/Save-as-PDF via browser print (shell hidden with `print:hidden`), upload signed copy → status "signed".
+  Studio legal details live in `workspace_settings` (legal_name, business_id, address, signatory_name).
+- Brand: `src/components/brand/logo.tsx` (SVG recreation of the weblly logo; colors in `BRAND`). Used in sidebar,
+  login, public questionnaires, contracts, favicon (`src/app/icon.svg`).
+- Notes. Activity timeline (DB triggers).
 - **Social** (`/social`): albums per job with sections (process / before-after / final / behind the scenes), photos + video, status (collecting/editing/published).
 - Settings: business details, profile, password change, team management, delete demo data.
 
@@ -69,7 +75,7 @@ Patterns to follow:
 `NEXT_PUBLIC_SITE_URL`, `SUPABASE_DB_URL` (direct/pooler connection string, only for scripts).
 
 Migrations are tracked in `internal.app_migrations`. Apply new ones with `npm run db:migrate`.
-Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices.
+Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator.
 **Enum values added with `alter type … add value` cannot be used in the same migration file.**
 
 Workflow for a DB change: write `supabase/migrations/<timestamp>_name.sql` → add a test in `supabase/tests/db.test.ts`
