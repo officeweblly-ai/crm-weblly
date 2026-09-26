@@ -1,0 +1,344 @@
+import Link from "next/link";
+import { ClipboardList, FileSignature, FolderKanban, FolderPlus, Plus, Receipt, Send, StickyNote } from "lucide-react";
+import { Timeline } from "@/components/activity/timeline";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader, DataItem, DataList } from "@/components/ui/card";
+import { EmailLink, EmptyState, Money, PhoneLink, UrlLink } from "@/components/ui/misc";
+import { ContractFormModal, ContractList } from "@/components/contracts/contracts";
+import { FileGrid, GroupedFiles } from "@/components/files/file-list";
+import { FilesPanel } from "@/components/files/files-panel";
+import { NotesPanel } from "@/components/notes/notes-panel";
+import { PaymentFormModal } from "@/components/payments/payment-form";
+import { PaymentsTable } from "@/components/payments/payments-table";
+import { ProjectFormModal } from "@/components/projects/project-form";
+import { ProjectSummary } from "@/components/projects/project-summary";
+import { LedgerBar } from "@/components/projects/lifecycle";
+import { AnswersView } from "@/components/questionnaires/answers-view";
+import { SendQuestionnaireModal } from "@/components/questionnaires/send-questionnaire";
+import { SubmissionsList } from "@/components/questionnaires/submissions-list";
+import { TaskFormModal } from "@/components/tasks/task-form";
+import { TaskList } from "@/components/tasks/task-list";
+import {
+  getSubmission,
+  listActivity,
+  listContracts,
+  listFiles,
+  listNotes,
+  listPayments,
+  listProjects,
+  listSubmissions,
+  listTasks,
+  withThumbs,
+} from "@/lib/data/crm";
+import { leadSource, submissionStatus, type ProjectType } from "@/lib/domain/labels";
+import { formatDateTime, timeAgo } from "@/lib/format";
+import type { Tables, Views } from "@/lib/supabase/database.types";
+
+type Opt = { value: string; label: string; clientId: string };
+
+function Panel({ title, action, children, flush }: { title: string; action?: React.ReactNode; children: React.ReactNode; flush?: boolean }) {
+  return (
+    <Card>
+      <CardHeader title={title} action={action} />
+      {flush ? children : <CardBody>{children}</CardBody>}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function Overview({ clientId, client, financials }: { clientId: string; client: Tables<"clients">; financials: Views<"client_financials"> | null }) {
+  const [{ rows: projects }, tasks, activity, { rows: subs }, { rows: files }] = await Promise.all([
+    listProjects({ clientId, page: 1, all: true, sort: "updated" }),
+    listTasks({ clientId, status: "open", limit: 5 }),
+    listActivity({ clientId, limit: 6 }),
+    listSubmissions({ clientId }),
+    listFiles({ clientId, limit: 40 }),
+  ]);
+  const active = projects.filter((p) => p.status !== "completed");
+  const primary = active[0] ?? projects[0];
+  const others = projects.filter((p) => p.id !== primary?.id);
+  const latestSub = subs[0];
+  const important = await withThumbs(files.filter((f) => ["branding", "contracts", "questionnaire"].includes(f.category)).slice(0, 4));
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="flex min-w-0 flex-col gap-5">
+        {primary ? (
+          <section aria-label="פרויקט נוכחי">
+            <ProjectSummary project={primary} />
+            {others.length > 0 && (
+              <ul className="mt-3 flex flex-col gap-2">
+                {others.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/projects/${p.id}`} className="flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2.5 text-sm hover:border-line-strong">
+                      <span className="truncate font-medium text-ink">{p.name}</span>
+                      <span className="shrink-0 text-ink-3">
+                        יתרה <Money value={p.financials?.balance_due ?? 0} />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : (
+          <Card>
+            <EmptyState
+              icon={FolderKanban}
+              title="ללקוח אין פרויקט עדיין"
+              description="פרויקט מחזיק את המחיר, המקדמה, הסטטוס והמשימות."
+              action={<ProjectFormModal clientId={clientId} trigger={<Button><FolderPlus aria-hidden />פרויקט חדש</Button>} />}
+            />
+          </Card>
+        )}
+
+        <Panel
+          title="שאלון אפיון"
+          action={
+            <Button asChild variant="link" size="sm">
+              <Link href={`/clients/${clientId}?tab=questionnaires`}>הכול</Link>
+            </Button>
+          }
+        >
+          {latestSub ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-ink">{latestSub.title}</span>
+                  <Badge tone={submissionStatus.tone(latestSub.status)}>{submissionStatus.label(latestSub.status)}</Badge>
+                </div>
+                <p className="mt-0.5 text-xs text-ink-3">
+                  {latestSub.status === "completed" ? `התקבל ${timeAgo(latestSub.completed_at)}` : `נוצר ${timeAgo(latestSub.created_at)}`}
+                </p>
+              </div>
+              <Button asChild variant="secondary" size="sm">
+                <Link href={`/questionnaires/${latestSub.id}`}>{latestSub.status === "completed" ? "צפייה בתשובות" : "מעקב"}</Link>
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-3">עוד לא נשלח שאלון. &quot;שליחת שאלון&quot; למעלה יוצר קישור אישי ללקוח.</p>
+          )}
+        </Panel>
+
+        <Panel
+          title="משימות פתוחות"
+          flush
+          action={
+            <Button asChild variant="link" size="sm">
+              <Link href={`/clients/${clientId}?tab=tasks`}>הכול</Link>
+            </Button>
+          }
+        >
+          {tasks.length ? <TaskList tasks={tasks} showContext /> : <p className="px-5 py-4 text-sm text-ink-3">אין משימות פתוחות.</p>}
+        </Panel>
+      </div>
+
+      <aside className="flex min-w-0 flex-col gap-5">
+        <Panel title="פרטי קשר">
+          <DataList className="sm:grid-cols-1">
+            <DataItem label="טלפון"><PhoneLink phone={client.phone} /></DataItem>
+            <DataItem label="אימייל"><EmailLink email={client.email} /></DataItem>
+            <DataItem label="אתר קיים"><UrlLink url={client.website} /></DataItem>
+            {client.source && <DataItem label="מקור">{leadSource.label(client.source)}</DataItem>}
+            <DataItem label="לקוח מאז">{formatDateTime(client.created_at)}</DataItem>
+          </DataList>
+          {client.notes && <p className="mt-4 border-t border-line pt-3 text-sm whitespace-pre-wrap text-ink-2">{client.notes}</p>}
+        </Panel>
+
+        {(financials?.project_count ?? 0) > 0 && (
+          <Panel title="מצב תשלומים">
+            <LedgerBar total={financials?.total_price ?? 0} paid={financials?.amount_paid ?? 0} deposit={0} />
+            <Button asChild variant="link" size="sm" className="mt-3">
+              <Link href={`/clients/${clientId}?tab=finances`}>היסטוריית תשלומים</Link>
+            </Button>
+          </Panel>
+        )}
+
+        {important.length > 0 && (
+          <Panel title="קבצים חשובים" action={<Button asChild variant="link" size="sm"><Link href={`/clients/${clientId}?tab=files`}>הכול</Link></Button>}>
+            <FileGrid files={important} />
+          </Panel>
+        )}
+
+        <Panel title="פעילות אחרונה" action={<Button asChild variant="link" size="sm"><Link href={`/clients/${clientId}?tab=activity`}>הכול</Link></Button>}>
+          {activity.length ? <Timeline items={activity} compact /> : <p className="text-sm text-ink-3">אין פעילות עדיין.</p>}
+        </Panel>
+      </aside>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function Questionnaires({ clientId, phone, templates, projects }: { clientId: string; phone: string | null; templates: { id: string; name: string; project_type: ProjectType | null }[]; projects: Opt[] }) {
+  const { rows } = await listSubmissions({ clientId });
+  const latestDone = rows.find((r) => r.status === "completed");
+  const detail = latestDone ? await getSubmission(latestDone.id) : null;
+  const send = (
+    <SendQuestionnaireModal templates={templates} projects={projects} clientId={clientId} clientPhone={phone} trigger={<Button size="sm"><Send aria-hidden />שאלון חדש</Button>} />
+  );
+  return (
+    <div className="flex flex-col gap-5">
+      <Panel title="שאלונים" action={send} flush>
+        {rows.length ? (
+          <SubmissionsList rows={rows} />
+        ) : (
+          <EmptyState compact icon={ClipboardList} title="עוד לא נשלח שאלון" description="השאלון אוסף מהלקוח את כל מה שצריך כדי להתחיל — טקסטים, צבעים, לוגו, השראות." action={send} />
+        )}
+      </Panel>
+      {detail && (
+        <Panel
+          title={`תשובות: ${detail.submission.title}`}
+          action={<Button asChild variant="link" size="sm"><Link href={`/questionnaires/${detail.submission.id}`}>לעמוד המלא</Link></Button>}
+        >
+          <AnswersView sections={detail.sections} files={Object.fromEntries(detail.files)} />
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function Projects({ clientId }: { clientId: string }) {
+  const { rows } = await listProjects({ clientId, page: 1, all: true });
+  const add = <ProjectFormModal clientId={clientId} trigger={<Button size="sm"><Plus aria-hidden />פרויקט חדש</Button>} />;
+  if (!rows.length)
+    return (
+      <Card>
+        <EmptyState icon={FolderKanban} title="אין פרויקטים" description="פתח פרויקט כדי לנהל מחיר, מקדמה, סטטוס ומשימות." action={add} />
+      </Card>
+    );
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">{add}</div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {rows.map((p) => (
+          <ProjectSummary key={p.id} project={p} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function Finances({ clientId, financials }: { clientId: string; financials: Views<"client_financials"> | null }) {
+  const [payments, { rows: projects }] = await Promise.all([listPayments({ clientId }), listProjects({ clientId, page: 1, all: true })]);
+  const projectOpts = projects.map((p) => ({ value: p.id, label: p.name, balance: p.financials?.balance_due }));
+  const add = projects.length ? (
+    projects.length === 1 ? (
+      <PaymentFormModal projectId={projects[0].id} balance={projects[0].financials?.balance_due} trigger={<Button size="sm"><Plus aria-hidden />רישום תשלום</Button>} />
+    ) : (
+      <PaymentFormModal projects={projectOpts} trigger={<Button size="sm"><Plus aria-hidden />רישום תשלום</Button>} />
+    )
+  ) : null;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader title="סיכום לקוח" />
+          <CardBody>
+            <LedgerBar total={financials?.total_price ?? 0} paid={financials?.amount_paid ?? 0} deposit={0} />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title="לפי פרויקט" />
+          <ul className="divide-y divide-line">
+            {projects.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <Link href={`/projects/${p.id}`} className="min-w-0 truncate font-medium text-ink hover:text-accent">{p.name}</Link>
+                <span className="shrink-0 text-ink-3">
+                  <Money value={p.financials?.amount_paid ?? 0} className="text-ok" /> / <Money value={p.total_price} />
+                </span>
+              </li>
+            ))}
+            {!projects.length && <li className="px-5 py-3 text-sm text-ink-3">אין פרויקטים עדיין.</li>}
+          </ul>
+        </Card>
+      </div>
+      <Panel title="היסטוריית תשלומים" action={add} flush>
+        {payments.length ? (
+          <div className="p-3 md:p-0">
+            <PaymentsTable payments={payments} />
+          </div>
+        ) : (
+          <EmptyState compact icon={Receipt} title="אין תשלומים עדיין" description={projects.length ? "כל תשלום שנרשם מעדכן אוטומטית את היתרה." : "קודם פותחים פרויקט עם מחיר, ואז רושמים תשלומים."} action={add} />
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function Contracts({ clientId, projects }: { clientId: string; projects: Opt[] }) {
+  const contracts = await listContracts({ clientId });
+  const add = <ContractFormModal clientId={clientId} projects={projects} trigger={<Button size="sm"><Plus aria-hidden />העלאת חוזה</Button>} />;
+  return (
+    <Panel title="חוזים והסכמים" action={add} flush>
+      {contracts.length ? (
+        <ContractList contracts={contracts} projects={projects} />
+      ) : (
+        <EmptyState compact icon={FileSignature} title="אין חוזים" description="העלה את הסכם העבודה — טיוטה או חתום — כדי שיהיה תמיד בהישג יד." action={add} />
+      )}
+    </Panel>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function Files({ clientId, projects }: { clientId: string; projects: Opt[] }) {
+  const { rows } = await listFiles({ clientId });
+  const files = await withThumbs(rows);
+  return (
+    <div className="flex flex-col gap-5">
+      <FilesPanel clientId={clientId} projects={projects} />
+      {files.length ? (
+        <GroupedFiles files={files} />
+      ) : (
+        <p className="py-6 text-center text-sm text-ink-3">אין קבצים עדיין. לוגו, תמונות וחומרים שהלקוח מעלה בשאלון יופיעו כאן אוטומטית.</p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function TasksTab({ clientId, projects }: { clientId: string; projects: Opt[] }) {
+  const [open, done] = await Promise.all([listTasks({ clientId, status: "open" }), listTasks({ clientId, status: "done", limit: 30 })]);
+  const add = <TaskFormModal clientId={clientId} projects={projects} trigger={<Button size="sm"><Plus aria-hidden />משימה</Button>} />;
+  return (
+    <div className="flex flex-col gap-5">
+      <Panel title="לביצוע" action={add} flush>
+        {open.length ? <TaskList tasks={open} showContext /> : <p className="px-5 py-4 text-sm text-ink-3">אין משימות פתוחות.</p>}
+      </Panel>
+      {done.length > 0 && (
+        <details className="group rounded-lg border border-line bg-surface shadow-1">
+          <summary className="cursor-pointer list-none px-5 py-3 text-sm font-medium text-ink-2 hover:text-ink">הושלמו ({done.length})</summary>
+          <div className="border-t border-line">
+            <TaskList tasks={done} showContext />
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function NotesTab({ clientId }: { clientId: string }) {
+  const notes = await listNotes({ clientId });
+  return (
+    <div className="max-w-3xl">
+      <NotesPanel clientId={clientId} notes={notes} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export async function ActivityTab({ clientId }: { clientId: string }) {
+  const items = await listActivity({ clientId, limit: 150 });
+  return (
+    <Card className="max-w-3xl">
+      <CardBody>
+        {items.length ? <Timeline items={items} /> : <EmptyState compact icon={StickyNote} title="אין פעילות" />}
+      </CardBody>
+    </Card>
+  );
+}
