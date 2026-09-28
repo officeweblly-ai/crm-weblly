@@ -51,3 +51,46 @@ export async function deleteAlbum(id: string): Promise<ActionResult> {
   revalidatePath("/social", "layout");
   return ok(undefined, "התיקייה וכל החומרים שבה נמחקו");
 }
+
+// ===========================================================================
+// Reels ready to post
+// ===========================================================================
+export async function setReelCaption(fileId: string, caption: string): Promise<ActionResult> {
+  const s = await staffClient();
+  if (!s) return NOT_AUTHORIZED;
+  const id = z.uuid().safeParse(fileId);
+  if (!id.success) return fail("קובץ לא תקין.");
+  const clean = caption.trim().slice(0, 2200) || null;
+  const { error } = await s.supabase.from("files").update({ caption: clean }).eq("id", id.data).not("album_id", "is", null);
+  if (error) return dbError(error, "שמירת הכיתוב נכשלה");
+  revalidatePath("/social", "layout");
+  return ok(undefined, "הכיתוב נשמר");
+}
+
+/** Marks a reel as published (or back to ready). */
+export async function setReelPosted(fileId: string, posted: boolean): Promise<ActionResult> {
+  const s = await staffClient();
+  if (!s) return NOT_AUTHORIZED;
+  const id = z.uuid().safeParse(fileId);
+  if (!id.success) return fail("קובץ לא תקין.");
+  const { error } = await s.supabase
+    .from("files")
+    .update({ posted_at: posted ? new Date().toISOString() : null })
+    .eq("id", id.data)
+    .not("album_id", "is", null);
+  if (error) return dbError(error, "העדכון נכשל");
+  revalidatePath("/social", "layout");
+  return ok(undefined, posted ? "סומן כפורסם" : "הוחזר לרשימת המוכנים");
+}
+
+/** Moves a file between sections of its album (e.g. a finished edit → "ready as a Reel"). */
+export async function moveToSection(fileId: string, section: string): Promise<ActionResult> {
+  const s = await staffClient();
+  if (!s) return NOT_AUTHORIZED;
+  const parsed = z.object({ id: z.uuid(), section: z.enum(["reels", "process", "before_after", "final", "behind_scenes", "other"]) }).safeParse({ id: fileId, section });
+  if (!parsed.success) return fail("נתונים לא תקינים.");
+  const { error } = await s.supabase.from("files").update({ album_section: parsed.data.section }).eq("id", parsed.data.id).not("album_id", "is", null);
+  if (error) return dbError(error, "ההעברה נכשלה");
+  revalidatePath("/social", "layout");
+  return ok(undefined, parsed.data.section === "reels" ? "הועבר ל״מוכן לעלות כריל״" : "הקובץ הועבר");
+}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, MessageCircle, Pencil, Send } from "lucide-react";
+import { ChevronRight, MessageCircle, MessageSquarePlus, Pencil, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LinkTabs } from "@/components/ui/link-tabs";
@@ -8,6 +8,7 @@ import { EmailLink, PhoneLink, UrlLink } from "@/components/ui/misc";
 import { ClientFormModal } from "@/components/clients/client-form";
 import { ClientMenu, ClientStatusControl } from "@/components/clients/client-menu";
 import { SendQuestionnaireModal } from "@/components/questionnaires/send-questionnaire";
+import { InteractionModal } from "@/components/relationship/relationship-forms";
 import { getClient, projectOptions, templateOptions } from "@/lib/data/crm";
 import { createClient } from "@/lib/supabase/server";
 import { whatsappLink } from "@/lib/format";
@@ -16,6 +17,7 @@ import * as Tabs from "./tabs";
 
 const TABS = [
   { key: "overview", label: "סקירה" },
+  { key: "relationship", label: "קשר" },
   { key: "questionnaires", label: "אפיון" },
   { key: "projects", label: "פרויקטים" },
   { key: "finances", label: "כספים" },
@@ -53,6 +55,7 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
     supabase.from("notes").select("id", head).eq("client_id", id),
     templateOptions(),
   ]);
+  const { count: openFollowUps } = await supabase.from("follow_ups").select("id", head).eq("client_id", id).eq("status", "open");
   const counts: Partial<Record<TabKey, number>> = {
     projects: projects.length,
     questionnaires: subs.count ?? 0,
@@ -60,6 +63,7 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
     tasks: tasks.count ?? 0,
     contracts: contracts.count ?? 0,
     notes: notes.count ?? 0,
+    relationship: openFollowUps ?? 0,
   };
   const wa = whatsappLink(client.phone);
 
@@ -97,15 +101,25 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <InteractionModal
+            clientId={client.id}
+            projects={projects}
+            trigger={
+              <Button>
+                <MessageSquarePlus aria-hidden />
+                אינטראקציה
+              </Button>
+            }
+          />
           <SendQuestionnaireModal
             templates={templates}
             projects={projects}
             clientId={client.id}
             clientPhone={client.phone}
             trigger={
-              <Button>
+              <Button variant="secondary">
                 <Send aria-hidden />
-                שליחת שאלון
+                שאלון
               </Button>
             }
           />
@@ -129,6 +143,7 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
       />
 
       {tab === "overview" && <Tabs.Overview clientId={id} client={client} financials={data.financials} />}
+      {tab === "relationship" && <Tabs.RelationshipTab clientId={id} client={client} projects={projects} />}
       {tab === "questionnaires" && <Tabs.Questionnaires clientId={id} phone={client.phone} templates={templates} projects={projects} />}
       {tab === "projects" && <Tabs.Projects clientId={id} />}
       {tab === "finances" && <Tabs.Finances clientId={id} financials={data.financials} />}

@@ -34,7 +34,7 @@ export function FileUploader({
   /** Attach the uploaded files to a task (they still belong to the project). */
   taskId?: string;
   albumId?: string;
-  albumSection?: "process" | "before_after" | "final" | "behind_scenes" | "other";
+  albumSection?: "reels" | "process" | "before_after" | "final" | "behind_scenes" | "other";
   hint?: string;
   clientId?: string | null;
   projectId?: string | null;

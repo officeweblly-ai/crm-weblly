@@ -15,6 +15,9 @@ import {
   projectType,
   taskPriority,
   taskStatus,
+  interactionKind,
+  proposalStatus,
+  workCategory,
 } from "@/lib/domain/labels";
 
 // ---------------------------------------------------------------------------
@@ -104,6 +107,7 @@ export const clientSchema = z.object({
   status: z.enum(clientStatus.values).default("active"),
   source: z.enum(leadSource.values).optional().transform((v) => v ?? null),
   notes: optText(5000),
+  services: optText(500),
 });
 export type ClientInput = z.infer<typeof clientSchema>;
 
@@ -187,6 +191,8 @@ export const taskSchema = z
     priority: z.enum(taskPriority.values).default("medium"),
     status: z.enum(taskStatus.values).default("todo"),
     assigned_to: optUuid,
+    secondary_assigned_to: optUuid,
+    category: z.enum(workCategory.values).optional().transform((v) => v ?? null),
     blocked_by_task_id: optUuid,
     internal_notes: optText(5000),
     links: linkLines,
@@ -194,6 +200,9 @@ export const taskSchema = z
   .superRefine((v, ctx) => {
     if (v.start_date && v.due_date && v.due_date < v.start_date) {
       ctx.addIssue({ code: "custom", path: ["due_date"], message: "תאריך היעד לפני תאריך ההתחלה" });
+    }
+    if (v.secondary_assigned_to && v.secondary_assigned_to === v.assigned_to) {
+      ctx.addIssue({ code: "custom", path: ["secondary_assigned_to"], message: "זה כבר האחראי הראשי" });
     }
   });
 export type TaskInput = z.infer<typeof taskSchema>;
@@ -233,7 +242,7 @@ export const uploadRequestSchema = z.object({
   client_id: optUuid,
   project_id: optUuid,
   album_id: optUuid,
-  album_section: z.enum(["process", "before_after", "final", "behind_scenes", "other"]).optional().transform((v) => v ?? null),
+  album_section: z.enum(["reels", "process", "before_after", "final", "behind_scenes", "other"]).optional().transform((v) => v ?? null),
   task_id: optUuid,
 });
 
@@ -335,6 +344,13 @@ export const portfolioSchema = z.object({
     .transform((v) => (v ?? "").split(/[,\n]/).map((t) => t.trim()).filter(Boolean).slice(0, 30)),
   site_url: reqUrl.optional().transform((v) => v ?? null),
   status: z.enum(portfolioStatus.values).default("draft"),
+  client_display_name: optText(200),
+  services: z
+    .string()
+    .max(1000)
+    .optional()
+    .transform((v) => (v ?? "").split(/[,\n]/).map((t) => t.trim()).filter(Boolean).slice(0, 20)),
+  is_featured: z.enum(["on"]).optional().transform((v) => v === "on"),
 });
 
 /** The client's answer from the presentation page. */
@@ -350,3 +366,148 @@ export const approvalResponseSchema = z
       ctx.addIssue({ code: "custom", path: ["comment"], message: "כתבו בקצרה מה תרצו לשנות" });
     }
   });
+
+// ---------------------------------------------------------------------------
+// V3 — team, relationship, proposals
+// ---------------------------------------------------------------------------
+const optTime = z
+  .string()
+  .regex(/^\d{2}:\d{2}(:\d{2})?$/, "שעה לא תקינה")
+  .optional()
+  .transform((v) => (v ? v.slice(0, 5) : null));
+
+const weekdays = z
+  .array(z.coerce.number().int().min(0).max(6))
+  .max(7)
+  .optional()
+  .transform((v) => [...new Set(v ?? [])].sort());
+
+/** A team member's working profile (the person themself, or the owner). */
+export const memberProfileSchema = z
+  .object({
+    full_name: required("שם", 120),
+    job_title: optText(120),
+    phone: optPhone,
+    avatar_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "צבע לא תקין").optional().transform((v) => v ?? null),
+    working_days: weekdays,
+    work_start: optTime,
+    work_end: optTime,
+    morning_time: z.string().regex(/^\d{2}:\d{2}$/, "שעה לא תקינה").default("08:30"),
+  })
+  .superRefine((v, ctx) => {
+    if (v.work_start && v.work_end && v.work_end <= v.work_start) {
+      ctx.addIssue({ code: "custom", path: ["work_end"], message: "סוף היום לפני תחילתו" });
+    }
+  });
+
+export const responsibilitySchema = z.object({
+  title: required("שם תחום האחריות", 120),
+  description: optText(1000),
+  category: z.enum(workCategory.values).default("other"),
+  assigned_to: optUuid,
+  is_active: z.enum(["on"]).optional().transform((v) => v === "on"),
+});
+
+export const interactionSchema = z.object({
+  client_id: uuid,
+  project_id: optUuid,
+  kind: z.enum(interactionKind.values).default("phone"),
+  occurred_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, "תאריך לא תקין")
+    .optional()
+    .transform((v) => v ?? null),
+  summary: required("מה היה", 3000),
+  result: optText(2000),
+  next_action: optText(300),
+  follow_up_date: optDate,
+});
+
+export const followUpSchema = z.object({
+  client_id: uuid,
+  project_id: optUuid,
+  assigned_to: optUuid,
+  due_date: isoDate,
+  reason: required("סיבה", 300),
+  note: optText(2000),
+});
+
+/** "label | amount | when" per line → milestones. */
+export function parseMilestones(text: string | undefined): { label: string; amount: number | null; when: string }[] {
+  return (text ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 12)
+    .map((line) => {
+      const [label = "", amount = "", when = ""] = line.split("|").map((x) => x.trim());
+      const n = Number(amount.replace(/[,\s₪]/g, ""));
+      return { label: label.slice(0, 120), amount: amount && Number.isFinite(n) ? n : null, when: when.slice(0, 120) };
+    });
+}
+
+const itemLines = z
+  .string()
+  .max(20000)
+  .optional()
+  .transform((v) =>
+    (v ?? "")
+      .split(/\r?\n/)
+      .map((l) => l.trim().replace(/^[-•*]\s*/, ""))
+      .filter(Boolean)
+      .slice(0, 60)
+      .map((l) => l.slice(0, 300)),
+  );
+
+export const proposalSchema = z
+  .object({
+    client_id: uuid,
+    project_id: optUuid,
+    submission_id: optUuid,
+    title: required("כותרת", 200),
+    project_type: z.enum(projectType.values).optional().transform((v) => v ?? null),
+    intro: optText(3000),
+    scope: optText(20000),
+    included: itemLines,
+    excluded: itemLines,
+    price: money("מחיר"),
+    deposit: money("מקדמה"),
+    milestones: z.string().max(5000).optional().transform((v) => parseMilestones(v)),
+    delivery_estimate: optText(200),
+    valid_until: optDate,
+    notes: optText(5000),
+    internal_notes: optText(5000),
+    status: z.enum(proposalStatus.values).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.price > 0 && v.deposit > v.price) ctx.addIssue({ code: "custom", path: ["deposit"], message: "המקדמה גבוהה מהמחיר" });
+  });
+
+export const proposalResponseSchema = z
+  .object({
+    decision: z.enum(["accepted", "rejected"]),
+    name: optText(120),
+    note: optText(3000),
+  })
+  .superRefine((v, ctx) => {
+    if (v.decision === "accepted" && !v.name) ctx.addIssue({ code: "custom", path: ["name"], message: "כתבו את שמכם לאישור" });
+  });
+
+export const signatureSchema = z.object({
+  version: z.coerce.number().int().min(1),
+  hash: z.string().regex(/^[0-9a-f]{64}$/),
+  name: required("שם מלא", 120),
+  id_number: z
+    .string()
+    .trim()
+    .max(20)
+    .optional()
+    .transform((v) => v || null)
+    .refine((v) => !v || /^\d{5,9}$/.test(v), "מספר ת.ז / ח.פ לא תקין"),
+  email: optEmail,
+  signature: z
+    .string()
+    .startsWith("data:image/png;base64,", "חסרה חתימה")
+    .max(390000, "החתימה גדולה מדי — נסו שוב"),
+  agree: z.enum(["on"], { error: "יש לאשר שקראתם את ההסכם" }),
+});

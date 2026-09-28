@@ -6,6 +6,7 @@ import { z } from "zod";
 import { buildHandoff, type HandoffFile } from "@/lib/ai-handoff";
 import { CLIENT_SAFE_LINK_KINDS, type ProjectLinkKind } from "@/lib/domain/labels";
 import { env } from "@/lib/env";
+import { previewImage } from "@/lib/link-preview";
 import { approvalSchema, clientPresentationSchema, projectLinkSchema, referenceSchema } from "@/lib/validation/schemas";
 import { dbError, formToObject, NOT_AUTHORIZED, parseForm, staffClient } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
@@ -70,7 +71,8 @@ export async function createReference(fd: FormData): Promise<ActionResult<{ id: 
   if (!s) return NOT_AUTHORIZED;
   const p = parseForm(referenceSchema, fd);
   if (!p.success) return p.result;
-  const { data, error } = await s.supabase.from("project_references").insert(p.data).select("id").single();
+  const thumbnail_url = await previewImage(p.data.url);
+  const { data, error } = await s.supabase.from("project_references").insert({ ...p.data, thumbnail_url }).select("id").single();
   if (error) return dbError(error, "שמירת הרפרנס נכשלה");
   refresh();
   return ok({ id: data.id }, "הרפרנס נשמר");
@@ -81,7 +83,9 @@ export async function updateReference(id: string, fd: FormData): Promise<ActionR
   if (!s) return NOT_AUTHORIZED;
   const p = parseForm(referenceSchema, fd);
   if (!p.success) return p.result;
-  const { error } = await s.supabase.from("project_references").update(p.data).eq("id", id);
+  const { data: before } = await s.supabase.from("project_references").select("url, thumbnail_url").eq("id", id).maybeSingle();
+  const thumbnail_url = before && before.url === p.data.url && before.thumbnail_url ? before.thumbnail_url : await previewImage(p.data.url);
+  const { error } = await s.supabase.from("project_references").update({ ...p.data, thumbnail_url }).eq("id", id);
   if (error) return dbError(error, "עדכון הרפרנס נכשל");
   refresh();
   return ok({ id }, "הרפרנס עודכן");

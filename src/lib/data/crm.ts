@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { clientStatus, projectStatus, projectType, taskPriority, type ClientStatus, type ProjectStatus, type ProjectType } from "@/lib/domain/labels";
+import { clientStatus, CURRENT_CLIENT_STATUSES, PAST_CLIENT_STATUSES, projectStatus, projectType, taskPriority, type ClientStatus, type ProjectStatus, type ProjectType } from "@/lib/domain/labels";
 import { pageRange, PAGE_SIZE, searchPattern } from "@/lib/utils";
 import { isoDateOffset, todayISO } from "@/lib/format";
 import type { Tables, Views } from "@/lib/supabase/database.types";
@@ -25,8 +25,8 @@ export async function listClients(f: { q?: string; status?: string; sort?: strin
   const supabase = await createClient();
   let query = supabase.from("clients").select("*", { count: "exact" });
   if (f.q) query = query.or(orSearch(f.q, ["name", "business_name", "email", "website"]));
-  if (f.status === "current") query = query.in("status", ["active", "maintenance", "on_hold"]);
-  else if (f.status === "past") query = query.in("status", ["completed", "archived"]);
+  if (f.status === "current") query = query.in("status", CURRENT_CLIENT_STATUSES);
+  else if (f.status === "past") query = query.in("status", PAST_CLIENT_STATUSES);
   else if (f.status && (clientStatus.values as string[]).includes(f.status)) query = query.eq("status", f.status as ClientStatus);
   else if (f.status !== "all") query = query.neq("status", "archived");
 
@@ -191,13 +191,14 @@ export type TaskRow = Tables<"tasks"> & {
   projects: { id: string; name: string } | null;
   clients: { id: string; name: string } | null;
   assignee: { id: string; full_name: string; email: string } | null;
+  secondary: { id: string; full_name: string; email: string } | null;
   checklist: { id: string; title: string; is_done: boolean; position: number }[];
   task_files: { id: string; original_name: string; mime_type: string }[];
   blocker: { id: string; title: string; status: Tables<"tasks">["status"] } | null;
 };
 
 const TASK_SELECT =
-  "*, projects(id, name), clients(id, name), assignee:profiles!tasks_assigned_to_fkey(id, full_name, email), checklist:task_checklist_items(id, title, is_done, position), task_files:files(id, original_name, mime_type)";
+  "*, projects(id, name), clients(id, name), assignee:profiles!tasks_assigned_to_fkey(id, full_name, email), secondary:profiles!tasks_secondary_assigned_to_fkey(id, full_name, email), checklist:task_checklist_items(id, title, is_done, position), task_files:files(id, original_name, mime_type)";
 
 export type TaskFilter = Scope & {
   /** open = everything not done. A specific status narrows further. */
@@ -216,8 +217,8 @@ export async function listTasks(scope: TaskFilter) {
   if (scope.clientId) q = q.eq("client_id", scope.clientId);
   if (scope.status === "open" || !scope.status) q = q.neq("status", "done");
   else if (scope.status !== "all") q = q.eq("status", scope.status);
-  if (scope.assignee === "none") q = q.is("assigned_to", null);
-  else if (scope.assignee) q = q.eq("assigned_to", scope.assignee);
+  if (scope.assignee === "none") q = q.is("assigned_to", null).is("secondary_assigned_to", null);
+  else if (scope.assignee) q = q.or(`assigned_to.eq.${scope.assignee},secondary_assigned_to.eq.${scope.assignee}`);
   if (scope.priority && (taskPriority.values as string[]).includes(scope.priority)) q = q.eq("priority", scope.priority as Tables<"tasks">["priority"]);
   if (scope.q) q = q.ilike("title", searchPattern(scope.q));
   const today = todayISO();
@@ -446,7 +447,17 @@ export async function getAlbum(id: string) {
 }
 
 /** Pre-fills a new agreement from the studio settings, the client and (optionally) a project. */
-export async function initialContract(clientId: string, projectId: string | null) {
+type ProposalForContract = {
+  price: number;
+  deposit: number;
+  scope: string | null;
+  delivery_estimate: string | null;
+  milestones: { label: string; amount: number | null; when: string }[];
+  included: string[];
+  excluded: string[];
+};
+
+export async function initialContract(clientId: string, projectId: string | null, proposal?: ProposalForContract | null) {
   const { defaultClauses, defaultScope } = await import("@/lib/domain/contracts");
   const { projectType } = await import("@/lib/domain/labels");
   const { todayISO } = await import("@/lib/format");
@@ -479,9 +490,25 @@ export async function initialContract(clientId: string, projectId: string | null
       deadline: project?.deadline ?? "",
     },
   };
+  if (proposal) {
+    // The agreed numbers and scope come from the accepted proposal, not retyped.
+    base.project.total = proposal.price;
+    base.project.deposit = proposal.deposit;
+  }
+  const clauses = defaultClauses(base);
+  if (proposal?.milestones.length) {
+    clauses.splice(2, 0, {
+      title: "אבני דרך לתשלום",
+      body: proposal.milestones.map((m) => `${m.label}${m.amount !== null ? ` — ₪${m.amount.toLocaleString("he-IL")}` : ""}${m.when ? ` (${m.when})` : ""}`).join("\n"),
+    });
+  }
+  if (proposal?.delivery_estimate) clauses[0] = { ...clauses[0], body: `${clauses[0].body}\nזמן אספקה משוער כפי שסוכם בהצעה: ${proposal.delivery_estimate}.` };
+  const scope = proposal
+    ? [proposal.scope, ...proposal.included.map((i) => `כלול: ${i}`), ...proposal.excluded.map((i) => `לא כלול: ${i}`)].filter(Boolean).join("\n")
+    : defaultScope(typeLabel);
   return {
     title: `הסכם לבניית ${typeLabel}${client.business_name ? ` — ${client.business_name}` : ` — ${client.name}`}`,
-    content: { ...base, scope: defaultScope(typeLabel), clauses: defaultClauses(base), date: todayISO() },
+    content: { ...base, scope: scope || defaultScope(typeLabel), clauses, date: todayISO() },
   };
 }
 
@@ -562,4 +589,25 @@ export async function getPortfolioItem(id: string) {
   const kindOf = new Map((media ?? []).map((m) => [m.file_id, m.kind]));
   const withUrls = await withThumbs(images ?? []);
   return { item, images: withUrls.map((f) => ({ ...f, portfolioKind: kindOf.get(f.id) ?? null })) };
+}
+
+// ===========================================================================
+// Social — finished videos ready to post as a Reel (across all albums)
+// ===========================================================================
+export type ReelRow = FileRow & { thumbUrl: string | null; social_albums: { id: string; title: string } | null };
+
+export async function listReels(opts: { posted?: boolean; albumId?: string } = {}) {
+  const supabase = await createClient();
+  let q = supabase
+    .from("files")
+    .select("*, projects(id, name), clients(id, name), social_albums(id, title)")
+    .eq("album_section", "reels")
+    .order("created_at", { ascending: false })
+    .limit(120);
+  if (opts.albumId) q = q.eq("album_id", opts.albumId);
+  if (opts.posted === true) q = q.not("posted_at", "is", null);
+  if (opts.posted === false) q = q.is("posted_at", null);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (await withThumbs(data ?? [])) as unknown as ReelRow[];
 }

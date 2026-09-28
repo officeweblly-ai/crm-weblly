@@ -78,6 +78,14 @@ function ReferenceItem({ reference }: { reference: RefRow }) {
   const cat = reference.category as ReferenceCategory;
   return (
     <li className="group flex items-start gap-3 px-4 py-3 sm:px-5">
+      <a href={reference.url} target="_blank" rel="noopener noreferrer" className="grid h-14 w-20 shrink-0 place-items-center overflow-hidden rounded-md border border-line bg-sunken" tabIndex={-1} aria-hidden>
+        {reference.thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element -- third-party preview image
+          <img src={reference.thumbnail_url} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-cover" />
+        ) : (
+          <Sparkles className="size-4 text-ink-3" />
+        )}
+      </a>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <a href={reference.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-ink hover:text-accent">

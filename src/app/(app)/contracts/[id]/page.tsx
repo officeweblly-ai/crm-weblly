@@ -4,6 +4,8 @@ import { ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContractDocument } from "@/components/contracts/contract-document";
 import { ContractToolbar } from "@/components/contracts/contract-toolbar";
+import { SigningPanel } from "@/components/contracts/signing-panel";
+import { env } from "@/lib/env";
 import { contractContentSchema } from "@/lib/domain/contracts";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,7 +14,11 @@ export const metadata = { title: "הסכם" };
 export default async function ContractPage({ params }: PageProps<"/contracts/[id]">) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: c } = await supabase.from("contracts").select("*, clients(id, name), files(id, original_name)").eq("id", id).maybeSingle();
+  const [{ data: c }, { data: versions }, { data: signatures }] = await Promise.all([
+    supabase.from("contracts").select("*, clients(id, name, phone), files(id, original_name)").eq("id", id).maybeSingle(),
+    supabase.from("contract_versions").select("version, created_at").eq("contract_id", id).order("version", { ascending: false }),
+    supabase.from("contract_signatures").select("version, signer_name, signed_at, ip").eq("contract_id", id).order("signed_at"),
+  ]);
   if (!c) notFound();
   const parsed = contractContentSchema.safeParse(c.content);
 
@@ -33,9 +39,22 @@ export default async function ContractPage({ params }: PageProps<"/contracts/[id
           <ContractToolbar id={id} clientId={c.client_id} status={c.status} file={c.files} canPrint={parsed.success} />
         </div>
       </div>
+      <div className="mb-5">
+        <SigningPanel
+          id={id}
+          status={c.status}
+          version={c.version}
+          link={c.sign_token ? `${env.siteUrl()}/s/${c.sign_token}` : null}
+          clientPhone={c.clients?.phone ?? null}
+          clientName={c.clients?.name.split(" ")[0] ?? ""}
+          title={c.title}
+          canSign={parsed.success}
+          versions={(versions ?? []).map((v) => ({ ...v, signatures: (signatures ?? []).filter((sg) => sg.version === v.version) }))}
+        />
+      </div>
       {parsed.success ? (
         <div className="rounded-lg bg-sunken p-2 sm:p-6 print:bg-transparent print:p-0">
-          <ContractDocument content={parsed.data} number={c.contract_number} title={c.title} />
+          <ContractDocument content={parsed.data} number={c.contract_number} title={c.title} version={c.version} />
         </div>
       ) : (
         <div className="rounded-lg border border-line bg-surface p-6 text-sm text-ink-2">

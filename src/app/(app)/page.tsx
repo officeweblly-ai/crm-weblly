@@ -7,6 +7,8 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, Money, StatCard } from "@/components/ui/misc";
 import { Deadline } from "@/components/projects/project-summary";
 import { TaskList } from "@/components/tasks/task-list";
+import { WorkloadList } from "@/components/work/workload";
+import { loadWork } from "@/lib/data/work";
 import { requireStaff } from "@/lib/auth";
 import { listActivity, listProjects, listTasks } from "@/lib/data/crm";
 import { createClient } from "@/lib/supabase/server";
@@ -50,6 +52,14 @@ export default async function DashboardPage() {
     listTasks({ status: "open", due: "week", limit: 10 }),
     supabase.from("leads").select("id, name, business_name, follow_up_date, status").not("status", "in", "(converted,lost)").not("follow_up_date", "is", null).lte("follow_up_date", week).order("follow_up_date").limit(6),
   ]);
+  // Same engine as "היום" and the morning push, so the numbers always agree.
+  const work = await loadWork(supabase, viewer.userId);
+  const team = work.items;
+  const ourMove = work.input.projects.filter((p) => !["lead", "completed", "questionnaire_sent", "awaiting_deposit", "awaiting_approval", "awaiting_final_payment"].includes(p.status)).length;
+  const openProposals = work.input.proposals.filter((p) => p.status === "sent" || p.status === "viewed").length;
+  const unsigned = work.input.contracts.filter((c) => c.status === "sent").length;
+  const inactive = team.filter((i) => i.alertKey).length;
+  const colors = Object.fromEntries(work.team.map((m) => [m.id, m.avatar_color]));
   const metrics = (m ?? {}) as Partial<Metrics>;
   const n = (k: keyof Metrics) => Number(metrics[k] ?? 0);
   const revenueDelta = n("revenue_this_month") - n("revenue_last_month");
@@ -98,6 +108,15 @@ export default async function DashboardPage() {
         <StatCard label="לקוחות ממתינים לתשלום" value={n("clients_awaiting_payment")} hint="מקדמה או יתרה סופית" href="/projects?status=awaiting_payment" />
         <StatCard label="משימות פתוחות" value={n("open_tasks")} href="/tasks" />
         <StatCard label="משימות באיחור" value={n("overdue_tasks")} href="/tasks?due=overdue" tone={n("overdue_tasks") > 0 ? "danger" : "neutral"} />
+      </section>
+
+      <section aria-label="העבודה היומית" className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <StatCard label="העבודה שלי היום" value={work.plan.now.length} hint={work.plan.countsLine || "הכול מטופל"} href="/today" tone={work.plan.now.some((i) => i.rank <= 2) ? "warn" : "neutral"} />
+        <StatCard label="ממתין ללקוח" value={team.filter((i) => i.bucket === "waiting").length} hint="אישורים, שאלונים, תשלומים" href="/today?view=team" />
+        <StatCard label="ממתין לנו" value={ourMove} hint="פרויקטים שהכדור אצלנו" href="/projects?status=active" />
+        <StatCard label="לקוחות לא פעילים" value={inactive} hint="בלי קשר או רכישה זמן רב" href="/today" />
+        <StatCard label="הצעות שלא נענו" value={openProposals} href="/proposals?status=open" />
+        <StatCard label="חוזים שלא נחתמו" value={unsigned} hint="נשלחו לחתימה" href="/today?view=team" />
       </section>
 
       {empty ? (
@@ -180,6 +199,10 @@ export default async function DashboardPage() {
           </div>
 
           <aside className="flex min-w-0 flex-col gap-5">
+            <Card>
+              <CardHeader title="עומס הצוות" action={<Button asChild variant="link" size="sm"><Link href="/settings/team">צוות<ArrowLeft aria-hidden /></Link></Button>} />
+              <WorkloadList rows={work.workload} colors={colors} meId={viewer.userId} />
+            </Card>
             <Card>
               <CardHeader title="לקוחות אחרונים" action={<Button asChild variant="link" size="sm"><Link href="/clients">הכול<ArrowLeft aria-hidden /></Link></Button>} />
               <ul className="divide-y divide-line">

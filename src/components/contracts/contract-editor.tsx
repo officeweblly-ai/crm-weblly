@@ -18,6 +18,7 @@ export function ContractEditor({
   number,
   clientId,
   projectId,
+  proposalId,
   initialTitle,
   initial,
 }: {
@@ -25,6 +26,8 @@ export function ContractEditor({
   number?: string | null;
   clientId: string;
   projectId: string | null;
+  /** Set when the agreement is created from an accepted proposal. */
+  proposalId?: string | null;
   initialTitle: string;
   initial: ContractContent;
 }) {
@@ -50,7 +53,7 @@ export function ContractEditor({
 
   const save = () =>
     start(async () => {
-      const r = await saveGeneratedContract({ id, client_id: clientId, project_id: projectId, title, content: c });
+      const r = await saveGeneratedContract({ id, client_id: clientId, project_id: projectId, ...(proposalId ? { proposal_id: proposalId } : {}), title, content: c });
       if (r.ok) {
         toast.success(r.message ?? "נשמר");
         router.push(`/contracts/${r.data.id}`);

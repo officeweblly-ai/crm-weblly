@@ -57,8 +57,9 @@ export default async function PortfolioPage({ searchParams }: PageProps<"/portfo
                     </span>
                   </span>
                 )}
-                <span className="absolute start-2 top-2">
+                <span className="absolute start-2 top-2 flex gap-1">
                   <Badge tone={portfolioStatus.tone(i.status as PortfolioStatus)} className="bg-surface/95">{portfolioStatus.label(i.status as PortfolioStatus)}</Badge>
+                  {i.is_featured && <Badge tone="accent" className="bg-surface/95">מוביל</Badge>}
                 </span>
               </Link>
               <div className="flex items-start gap-2 p-4">

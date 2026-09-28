@@ -97,6 +97,9 @@ export function ClientFormModal({ client, trigger, defaultOpen = false, open: op
             </Field>
           )}
         </FormGrid>
+        <Field label="שירותים נוכחיים" hint="לדוגמה: תחזוקת אתר חודשית, אחסון, קמפיין גוגל" error={errors.services}>
+          {(p) => <Input {...p} name="services" defaultValue={client?.services ?? ""} />}
+        </Field>
         <Field label="הערות כלליות" hint="פנימי — הלקוח לא רואה את זה." error={errors.notes}>
           {(p) => <Textarea {...p} name="notes" defaultValue={client?.notes ?? ""} rows={3} />}
         </Field>

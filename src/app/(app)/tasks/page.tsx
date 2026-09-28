@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ListChecks, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,8 +8,9 @@ import { TaskFormModal } from "@/components/tasks/task-form";
 import { TaskList } from "@/components/tasks/task-list";
 import { listTasks, projectOptions, staffOptions, type TaskFilter, type TaskRow } from "@/lib/data/crm";
 import { taskPriority, taskStatus } from "@/lib/domain/labels";
+import { requireStaff } from "@/lib/auth";
 import { daysUntil } from "@/lib/format";
-import { first } from "@/lib/utils";
+import { cn, first } from "@/lib/utils";
 
 export const metadata = { title: "משימות" };
 
@@ -23,10 +25,12 @@ function bucket(t: TaskRow): string {
 const ORDER = ["באיחור", "היום", "השבוע", "בהמשך", "ללא תאריך יעד"];
 
 export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
+  const viewer = await requireStaff();
   const sp = await searchParams;
   const rawStatus = first(sp.status);
   const status = (rawStatus && ["done", "all", ...taskStatus.values].includes(rawStatus) ? rawStatus : "open") as NonNullable<TaskFilter["status"]>;
-  const due = first(sp.due) as "overdue" | "week" | undefined;
+  const rawDue = first(sp.due);
+  const due = rawDue === "overdue" || rawDue === "week" || rawDue === "today" ? rawDue : undefined;
   const q = first(sp.q);
   const isId = (v?: string) => (v && /^[0-9a-f-]{36}$/i.test(v) ? v : undefined);
   const project = isId(first(sp.project));
@@ -49,7 +53,36 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
 
   return (
     <>
-      <PageHeader title="משימות" description="מה צריך לקרות, בכל הפרויקטים." actions={add(true)} />
+      <PageHeader title="משימות" description="מה צריך לקרות, בכל הפרויקטים — ולכל משימה יש אחראי." actions={add(true)} />
+      <nav aria-label="סינון מהיר" className="scrollbar-thin -mx-4 mb-3 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ul className="flex min-w-max gap-1.5">
+          {[
+            { label: "הכול", href: "/tasks", on: !filtered },
+            { label: "המשימות שלי", href: `/tasks?assignee=${viewer.userId}`, on: assignee === viewer.userId && !due && status === "open" },
+            ...staff
+              .filter((p) => p.value !== viewer.userId)
+              .map((p) => ({ label: `של ${p.label.split(" ")[0]}`, href: `/tasks?assignee=${p.value}`, on: assignee === p.value && !due && status === "open" })),
+            { label: "ללא אחראי", href: "/tasks?assignee=none", on: assignee === "none" },
+            { label: "להיום", href: "/tasks?due=today", on: due === "today" && !assignee },
+            { label: "באיחור", href: "/tasks?due=overdue", on: due === "overdue" && !assignee },
+            { label: "ממתין ללקוח", href: "/tasks?status=waiting_client", on: status === "waiting_client" && !assignee },
+          ].map((c) => (
+            <li key={c.href}>
+              <Link
+                href={c.href}
+                scroll={false}
+                aria-current={c.on ? "page" : undefined}
+                className={cn(
+                  "inline-flex h-9 items-center rounded-full border px-3.5 text-sm transition-colors",
+                  c.on ? "border-accent/30 bg-accent-soft font-medium text-accent-ink" : "border-line-strong bg-surface text-ink-2 hover:bg-sunken hover:text-ink",
+                )}
+              >
+                {c.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
       <ListToolbar
         searchPlaceholder="חיפוש משימה"
         filters={[
@@ -62,7 +95,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           { name: "project", label: "פרויקט", allLabel: "כל הפרויקטים", options: projects.map((p) => ({ value: p.value, label: p.label })) },
           { name: "assignee", label: "אחראי", allLabel: "כל האחראים", options: [...staff, { value: "none", label: "ללא אחראי" }] },
           { name: "priority", label: "עדיפות", allLabel: "כל העדיפויות", options: taskPriority.list.map((o) => ({ value: o.value, label: o.label })) },
-          { name: "due", label: "יעד", allLabel: "כל התאריכים", options: [{ value: "overdue", label: "באיחור" }, { value: "week", label: "7 הימים הקרובים" }] },
+          { name: "due", label: "יעד", allLabel: "כל התאריכים", options: [{ value: "today", label: "להיום (כולל באיחור)" }, { value: "overdue", label: "באיחור" }, { value: "week", label: "7 הימים הקרובים" }] },
         ]}
       />
       {tasks.length === 0 ? (

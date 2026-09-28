@@ -127,3 +127,22 @@ export function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   return (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
 }
+
+/** Current weekday (0 = Sunday), HH:mm and date — in Israel. */
+export function israelNow(at: Date = new Date()): { weekday: number; time: string; date: string } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(at)
+      .map((p) => [p.type, p.value]),
+  );
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.weekday);
+  return { weekday, time: `${parts.hour}:${parts.minute}`, date: `${parts.year}-${parts.month}-${parts.day}` };
+}
+
+/** "YYYY-MM-DDTHH:mm" read as Israel wall-clock time → the real instant (handles DST). */
+export function fromIsraelTime(local: string): Date {
+  const guess = new Date(`${local.length === 10 ? `${local}T12:00` : local}:00Z`);
+  const shown = israelNow(guess);
+  const asUtc = Date.parse(`${shown.date}T${shown.time}:00Z`);
+  return new Date(guess.getTime() - (asUtc - guess.getTime()));
+}

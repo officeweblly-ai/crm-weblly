@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink, ReceiptText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { getSubmission } from "@/lib/data/crm";
 import { isEmptyAnswer, answersSchema, type FormSnapshot } from "@/lib/domain/forms";
 import { submissionStatus } from "@/lib/domain/labels";
 import { formatDateTime } from "@/lib/format";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "שאלון" };
 
@@ -19,6 +20,8 @@ export default async function SubmissionPage({ params }: PageProps<"/questionnai
   const data = await getSubmission(id);
   if (!data) notFound();
   const { submission: s, sections, files } = data;
+  const supabase = await createClient();
+  const { data: proposal } = await supabase.from("proposals").select("id, status").eq("submission_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle();
   const completed = s.status === "completed";
   const open = s.status !== "completed" && s.status !== "cancelled";
   const snapshot = s.form_snapshot as unknown as FormSnapshot;
@@ -54,6 +57,14 @@ export default async function SubmissionPage({ params }: PageProps<"/questionnai
             {s.projects && <> · <Link href={`/projects/${s.projects.id}`} className="hover:text-accent">{s.projects.name}</Link></>}
           </p>
         </div>
+        {completed && s.client_id && (
+          <Button asChild>
+            <Link href={proposal ? `/proposals/${proposal.id}` : `/proposals/new?submission=${s.id}`}>
+              <ReceiptText aria-hidden />
+              {proposal ? "להצעת המחיר" : "יצירת הצעת מחיר"}
+            </Link>
+          </Button>
+        )}
         {open && (
           <div className="flex gap-2">
             <CopyLinkButton token={s.token} id={s.id} status={s.status} size="md" />

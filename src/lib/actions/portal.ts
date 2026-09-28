@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notify } from "@/lib/push";
+import { notify, recipientsFor } from "@/lib/push";
 import { approvalResponseSchema } from "@/lib/validation/schemas";
 import { formToObject, parseForm } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
@@ -42,7 +42,8 @@ export async function respondToApproval(token: string, fd: FormData): Promise<Ac
     db.from("projects").select("id, name").eq("portal_token", token).maybeSingle(),
   ]);
   if (project) {
-    notify("staff", "approval_response", {
+    const { data: owner } = await db.from("projects").select("owner_id").eq("id", project.id).maybeSingle();
+    notify(() => recipientsFor("development", owner?.owner_id), "approval_response", {
       title: status === "approved" ? "הלקוח אישר" : "הלקוח ביקש שינויים",
       body: `${approval?.title ?? "בקשת אישור"} · ${project.name}${p.data.comment ? ` — "${p.data.comment.slice(0, 120)}"` : ""}`,
       url: `/projects/${project.id}#approvals`,

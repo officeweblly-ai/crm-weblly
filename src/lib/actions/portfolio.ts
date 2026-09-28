@@ -34,6 +34,7 @@ export async function addProjectToPortfolio(projectId: string): Promise<ActionRe
       project_id: projectId,
       client_id: project.client_id,
       title: project.clients?.business_name || project.name,
+      client_display_name: project.clients?.business_name || null,
       category: projectType.label(project.project_type),
       summary: project.description ? project.description.slice(0, 1000) : null,
       technologies,

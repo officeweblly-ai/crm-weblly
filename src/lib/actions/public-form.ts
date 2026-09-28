@@ -11,7 +11,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { buildSnapshot } from "@/lib/questionnaire-snapshot";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notify } from "@/lib/push";
+import { notify, recipientsFor } from "@/lib/push";
 import {
   answersSchema,
   MAX_FILES_PER_QUESTION,
@@ -213,7 +213,10 @@ export async function submitQuestionnaire(token: string, rawAnswers: unknown): P
   const orphans = (result?.orphan_paths ?? []).filter(Boolean);
   if (orphans.length) await db.storage.from(BUCKET).remove(orphans);
   const { data: who } = result?.client_id ? await db.from("clients").select("name, business_name").eq("id", result.client_id).maybeSingle() : { data: null };
-  notify("staff", "questionnaire_submitted", {
+  notify(async () => {
+    const owner = await recipientsFor("proposals");
+    return owner === "staff" ? recipientsFor("sales") : owner;
+  }, "questionnaire_submitted", {
     title: result?.created_client ? "לקוח חדש מילא שאלון" : "שאלון אפיון התקבל",
     body: `${who?.business_name || who?.name || "לקוח"} שלח/ה את "${r.s.snapshot.template_name}"`,
     url: `/questionnaires/${r.s.id}`,

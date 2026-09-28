@@ -27,6 +27,7 @@ import {
   FolderPlus,
   ListPlus,
   Send,
+  ReceiptText,
 } from "lucide-react";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/menu";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ export const NAV = [
   { href: "/clients", label: "לקוחות", icon: Users },
   { href: "/projects", label: "פרויקטים", icon: FolderKanban },
   { href: "/questionnaires", label: "שאלוני אפיון", icon: ClipboardList },
+  { href: "/proposals", label: "הצעות מחיר", icon: ReceiptText },
   { href: "/tasks", label: "משימות", icon: ListChecks },
   { href: "/finances", label: "כספים", icon: Wallet },
   { href: "/files", label: "קבצים", icon: Files },
@@ -49,8 +51,9 @@ export const NAV = [
   { href: "/settings", label: "הגדרות", icon: Settings },
 ] as const;
 
-// The mobile bottom bar stays exactly as before; new areas live in "עוד".
-const MOBILE_TABS = ["/", "/clients", "/projects", "/tasks"].map((href) => NAV.find((n) => n.href === href)!);
+// Phone bottom bar: the day starts on "היום" (also the installed app's start page);
+// the dashboard and every other area live in "עוד".
+const MOBILE_TABS = ["/today", "/clients", "/projects", "/tasks"].map((href) => NAV.find((n) => n.href === href)!);
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
@@ -156,6 +159,9 @@ export function QuickAdd({ compact }: { compact?: boolean }) {
       <MenuSeparator />
       <MenuItem onSelect={() => router.push("/questionnaires?new=1")}>
         <Send /> שליחת שאלון אפיון
+      </MenuItem>
+      <MenuItem onSelect={() => router.push("/proposals/new")}>
+        <ReceiptText /> הצעת מחיר
       </MenuItem>
       <MenuItem onSelect={() => router.push("/tasks?new=1")}>
         <ListPlus /> משימה חדשה

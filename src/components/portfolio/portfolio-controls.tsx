@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Confirm } from "@/components/ui/confirm";
-import { Field, FormGrid, Input, LtrInput, Select, Textarea } from "@/components/ui/field";
+import { Checkbox, Field, FormGrid, Input, LtrInput, Select, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { FileUploader } from "@/components/files/file-uploader";
 import { addProjectToPortfolio, deletePortfolioItem, movePortfolioItem, setPortfolioMedia, updatePortfolioItem } from "@/lib/actions/portfolio";
@@ -97,6 +97,12 @@ export function PortfolioForm({ item }: { item: Tables<"portfolio_items"> }) {
         <Field label="קטגוריה" error={errors.category}>
           {(p) => <Input {...p} name="category" defaultValue={item.category ?? ""} placeholder="אתר תדמית, חנות, מערכת…" />}
         </Field>
+        <Field label="שם הלקוח לתצוגה" hint="איך הלקוח יופיע בתיק העבודות" error={errors.client_display_name}>
+          {(p) => <Input {...p} name="client_display_name" defaultValue={item.client_display_name ?? ""} />}
+        </Field>
+        <Field label="שירותים" hint="מופרדים בפסיקים" error={errors.services}>
+          {(p) => <Input {...p} name="services" defaultValue={item.services.join(", ")} placeholder="אפיון, עיצוב, פיתוח, SEO" />}
+        </Field>
       </FormGrid>
       <Field label="תיאור קצר" error={errors.summary}>
         {(p) => <Textarea {...p} name="summary" defaultValue={item.summary ?? ""} rows={3} />}
@@ -121,6 +127,7 @@ export function PortfolioForm({ item }: { item: Tables<"portfolio_items"> }) {
           )}
         </Field>
       </FormGrid>
+      <Checkbox name="is_featured" defaultChecked={item.is_featured} label="פרויקט מוביל (מוצג ראשון)" />
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
         <Button type="submit" loading={pending} className="sm:min-w-28">שמירה</Button>
         <Button variant="danger-ghost" onClick={() => setDeleting(true)}>

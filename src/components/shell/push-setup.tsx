@@ -161,13 +161,13 @@ export function AppPrompt() {
         {needsInstall ? (
           <>
             <p className="text-sm font-semibold text-ink">התקינו את weblly כאפליקציה ותקבלו התראות</p>
-            <p className="mb-2 text-sm text-ink-2">משימה חדשה, שאלון שהתקבל, לקוח שאישר — ישר לאייפון.</p>
+            <p className="mb-2 text-sm text-ink-2">סיכום בוקר אישי, משימה חדשה, שאלון שהתקבל, חוזה שנחתם — ישר לאייפון.</p>
             <InstallSteps />
           </>
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-ink">
-              <span className="font-semibold">להפעיל התראות?</span> משימה שהוקצתה לך, שאלון שהתקבל, אישור מלקוח וסיכום בוקר.
+              <span className="font-semibold">להפעיל התראות?</span> סיכום בוקר אישי, משימה שהוקצתה לך, שאלון שהתקבל ואישורים מלקוחות.
             </p>
             <Button size="sm" onClick={push.enable} loading={push.pending} className="self-start sm:self-auto">
               <Bell aria-hidden />
@@ -184,23 +184,34 @@ export function AppPrompt() {
 }
 
 const EVENTS = [
+  { key: "daily_digest", label: "סיכום בוקר אישי", hint: "פעם ביום, בשעה ובימים שבחרת בפרופיל — מה דורש טיפול היום" },
   { key: "task_assigned", label: "משימה שהוקצתה לי", hint: "כשמישהו בצוות משייך אליך משימה" },
-  { key: "questionnaire_submitted", label: "שאלון אפיון התקבל", hint: "כשלקוח שולח שאלון (כולל לקוח חדש מהקישור הכללי)" },
-  { key: "approval_response", label: "תשובת לקוח לבקשת אישור", hint: "אישור או בקשת שינוי מקישור הצפייה" },
-  { key: "daily_digest", label: "סיכום בוקר", hint: "כל בוקר ב-7: משימות להיום, באיחור ולידים לחזור אליהם" },
+  { key: "questionnaire_submitted", label: "שאלון אפיון התקבל", hint: "למי שאחראי/ת על הצעות מחיר (או לכל הצוות אם לא הוגדר)" },
+  { key: "proposal_response", label: "תשובה להצעת מחיר", hint: "לקוח אישר או דחה הצעה" },
+  { key: "contract_signed", label: "חוזה נחתם", hint: "הלקוח חתם דיגיטלית" },
+  { key: "approval_response", label: "אישור / בקשת שינוי מלקוח", hint: "מקישור הצפייה של הפרויקט" },
+  { key: "payment_added", label: "נרשם תשלום", hint: "למי שאחראי/ת על גבייה" },
+] as const;
+
+/** What the morning summary may include (each person decides). */
+const DIGEST_PARTS = [
+  { key: "digest_overdue", label: "משימות באיחור וחסומות" },
+  { key: "digest_follow_ups", label: "מעקבים ולידים לחזור אליהם" },
+  { key: "digest_deadlines", label: "תאריכי יעד של פרויקטים" },
+  { key: "digest_inactive_clients", label: "לקוחות בלי קשר זמן רב" },
 ] as const;
 
 /** Settings → notifications: this device on/off, a test, and which events. */
-export function NotificationSettings({ prefs }: { prefs: Record<string, unknown> }) {
+export function NotificationSettings({ prefs, morningLabel }: { prefs: Record<string, unknown>; morningLabel?: string }) {
   const push = usePush();
-  const [values, setValues] = useState<Record<string, boolean>>(() => Object.fromEntries(EVENTS.map((e) => [e.key, prefs[e.key] !== false])));
+  const [values, setValues] = useState<Record<string, boolean>>(() => Object.fromEntries([...EVENTS, ...DIGEST_PARTS].map((e) => [e.key, prefs[e.key] !== false])));
   const [saving, start] = useTransition();
 
   const toggle = (key: string, on: boolean) => {
     const next = { ...values, [key]: on };
     setValues(next);
     start(async () => {
-      const r = await setNotifyPrefs(next);
+      const r = await setNotifyPrefs({ [key]: on });
       if (!r.ok) {
         toast.error(r.error);
         setValues(values);
@@ -259,10 +270,10 @@ export function NotificationSettings({ prefs }: { prefs: Record<string, unknown>
 
       <fieldset>
         <legend className="mb-1 text-sm font-semibold text-ink">על מה להתריע לי</legend>
-        <p className="mb-2 text-xs text-ink-3">חל על כל המכשירים שלך.</p>
+        <p className="mb-2 text-xs text-ink-3">חל על כל המכשירים שלך. {morningLabel}</p>
         <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
-          {EVENTS.map((e) => (
-            <li key={e.key}>
+          {[...EVENTS, ...DIGEST_PARTS.map((d) => ({ ...d, hint: "בתוך סיכום הבוקר" }))].map((e) => (
+            <li key={e.key} className={cn(e.key.startsWith("digest_") && "bg-paper/50 ps-4", e.key.startsWith("digest_") && values.daily_digest === false && "opacity-50")}>
               <label className="flex min-h-14 cursor-pointer items-center gap-3 px-3 py-2">
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium text-ink">{e.label}</span>

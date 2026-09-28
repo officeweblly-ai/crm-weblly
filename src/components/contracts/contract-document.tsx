@@ -23,7 +23,23 @@ function Party({ title, rows }: { title: string; rows: [string, string][] }) {
  * The printable agreement. Pure markup — renders the same on screen and in
  * the browser's "Save as PDF". Sized for A4.
  */
-export function ContractDocument({ content, number, title }: { content: ContractContent; number: string | null; title: string }) {
+export type DocumentSignature = { name: string; idNumber: string | null; png: string; signedAt: string; version: number };
+
+export function ContractDocument({
+  content,
+  number,
+  title,
+  version,
+  signature,
+}: {
+  content: ContractContent;
+  number: string | null;
+  title: string;
+  /** Shown when the agreement has more than one version. */
+  version?: number;
+  /** Client's digital signature (from contract_signatures). */
+  signature?: DocumentSignature | null;
+}) {
   const { studio, client, project } = content;
   const balance = Math.max(0, project.total - project.deposit);
   const scopeLines = content.scope.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -41,6 +57,7 @@ export function ContractDocument({ content, number, title }: { content: Contract
                   הסכם מס׳ <bdi dir="ltr">{number}</bdi> ·{" "}
                 </>
               )}
+              {version && version > 1 && <>גרסה {version} · </>}
               נחתם ביום {content.date ? formatDate(content.date) : "__________"}
             </p>
           </div>
@@ -112,16 +129,29 @@ export function ContractDocument({ content, number, title }: { content: Contract
 
         <section className="mt-10 grid grid-cols-2 gap-10 break-inside-avoid text-[12.5px]">
           {[
-            ["נותן השירות", studio.signatory || studio.legal_name || studio.name],
-            ["הלקוח", client.name + (client.business ? ` — ${client.business}` : "")],
-          ].map(([role, name]) => (
-            <div key={role}>
-              <div className="h-14 border-b border-[#141824]" />
-              <div className="mt-1.5 font-semibold">{role}</div>
-              <div className="text-[#6b7383]">{name}</div>
-              <div className="mt-3 text-[#6b7383]">תאריך: ____________</div>
-            </div>
-          ))}
+            ["נותן השירות", studio.signatory || studio.legal_name || studio.name, null],
+            ["הלקוח", client.name + (client.business ? ` — ${client.business}` : ""), signature ?? null],
+          ].map(([role, name, sig]) => {
+            const s = sig as DocumentSignature | null;
+            return (
+              <div key={role as string}>
+                <div className="flex h-14 items-end border-b border-[#141824]">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- inline data URL */}
+                  {s && <img src={s.png} alt={`חתימת ${s.name}`} className="max-h-14 max-w-full object-contain" />}
+                </div>
+                <div className="mt-1.5 font-semibold">{role as string}</div>
+                <div className="text-[#6b7383]">{s ? s.name : (name as string)}</div>
+                {s?.idNumber && <div className="text-[#6b7383]">ת.ז / ח.פ: <bdi dir="ltr">{s.idNumber}</bdi></div>}
+                <div className="mt-3 text-[#6b7383]">
+                  {s ? (
+                    <>נחתם דיגיטלית: {new Intl.DateTimeFormat("he-IL", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Jerusalem" }).format(new Date(s.signedAt))} · גרסה {s.version}</>
+                  ) : (
+                    "תאריך: ____________"
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </section>
 
         <footer className="mt-10 flex items-center justify-between border-t border-[#e3e6eb] pt-3 text-[10.5px] text-[#9aa1ad]">

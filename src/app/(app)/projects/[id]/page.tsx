@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, ChevronRight, ClipboardList, Plus, Receipt, Send } from "lucide-react";
+import { CalendarClock, ChevronRight, ClipboardList, Plus, Receipt, ReceiptText, Send } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { OwnerSelect } from "@/components/projects/owner-select";
 import { Timeline } from "@/components/activity/timeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, DataItem, DataList } from "@/components/ui/card";
@@ -35,10 +37,11 @@ import {
   listSubmissions,
   listTasks,
   projectOptions,
+  staffOptions,
   templateOptions,
   withThumbs,
 } from "@/lib/data/crm";
-import { DESIGN_APPROVAL_KINDS, DEV_CHECKLIST, projectType, type ApprovalKind } from "@/lib/domain/labels";
+import { DESIGN_APPROVAL_KINDS, DEV_CHECKLIST, projectType, proposalStatus, type ApprovalKind, type ProposalStatus } from "@/lib/domain/labels";
 import { env } from "@/lib/env";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -68,6 +71,11 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
     projectOptions(project.client_id),
     supabase.from("clients").select("phone, status").eq("id", project.client_id).maybeSingle(),
     getProjectHub(id),
+  ]);
+  const [staff, { data: proposals }, { count: futureFollowUps }] = await Promise.all([
+    staffOptions(),
+    supabase.from("proposals").select("id, title, status, price").or(`project_id.eq.${id},converted_project_id.eq.${id}`).order("created_at", { ascending: false }).limit(5),
+    supabase.from("follow_ups").select("id", { count: "exact", head: true }).eq("client_id", project.client_id).eq("status", "open"),
   ]);
   const files = await withThumbs(fileRows);
   const fin = project.financials;
@@ -136,6 +144,10 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             portfolioId={hub.portfolioId}
             albumId={hub.albumId}
             clientInMaintenance={client?.status === "maintenance"}
+            clientId={project.client_id}
+            staff={staff}
+            balance={Math.max(0, Number(balance))}
+            hasFutureFollowUp={(futureFollowUps ?? 0) > 0}
           />
 
           <Card id="payments" className="scroll-mt-24">
@@ -199,6 +211,9 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             <CardHeader title="פרטים" />
             <CardBody>
               <DataList className="sm:grid-cols-1">
+                <DataItem label="אחראי על הפרויקט">
+                  <OwnerSelect projectId={project.id} ownerId={project.owner_id} staff={staff} />
+                </DataItem>
                 <DataItem label="לקוח">{project.client ? <Link href={`/clients/${project.client.id}`} className="text-accent hover:underline">{project.client.name}{project.client.business_name ? ` · ${project.client.business_name}` : ""}</Link> : null}</DataItem>
                 <DataItem label="תאריך התחלה">{project.start_date ? formatDate(project.start_date) : null}</DataItem>
                 <DataItem label="יעד לסיום">{project.deadline ? formatDate(project.deadline) : null}</DataItem>
@@ -211,6 +226,31 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
           </Card>
 
           <ProjectLinksCard projectId={id} links={hub.links} />
+
+          <Card>
+            <CardHeader
+              title="הצעות מחיר"
+              action={
+                <Button asChild size="sm" variant="secondary">
+                  <Link href={`/proposals/new?client=${project.client_id}&project=${project.id}`}><Plus aria-hidden />הצעה</Link>
+                </Button>
+              }
+            />
+            {proposals?.length ? (
+              <ul className="divide-y divide-line">
+                {proposals.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/proposals/${p.id}`} className="flex min-h-12 items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-sunken/50 sm:px-5">
+                      <span className="min-w-0 truncate font-medium text-ink">{p.title}</span>
+                      <Badge tone={proposalStatus.tone(p.status as ProposalStatus)}>{proposalStatus.label(p.status as ProposalStatus)}</Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="flex items-center gap-2 px-5 py-4 text-sm text-ink-3"><ReceiptText className="size-4" aria-hidden />אין הצעות לפרויקט.</p>
+            )}
+          </Card>
 
           <PresentationCard
             project={project}

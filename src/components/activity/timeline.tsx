@@ -9,6 +9,11 @@ import {
   FolderKanban,
   Inbox,
   ListChecks,
+  MessagesSquare,
+  PhoneCall,
+  ReceiptText,
+  Stamp,
+  BriefcaseBusiness,
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
@@ -21,7 +26,14 @@ function iconFor(type: string): { icon: LucideIcon; cls: string } {
   if (type === "questionnaire.submitted") return { icon: ClipboardCheck, cls: "text-accent bg-accent-soft" };
   if (type.startsWith("questionnaire")) return { icon: ClipboardList, cls: "text-info bg-info-soft" };
   if (type.startsWith("file")) return { icon: FileUp, cls: "text-ink-2 bg-sunken" };
+  if (type === "contract.signed_digitally") return { icon: FileSignature, cls: "text-ok bg-ok-soft" };
   if (type.startsWith("contract")) return { icon: FileSignature, cls: "text-ink-2 bg-sunken" };
+  if (type === "proposal.accepted") return { icon: ReceiptText, cls: "text-ok bg-ok-soft" };
+  if (type.startsWith("proposal")) return { icon: ReceiptText, cls: "text-info bg-info-soft" };
+  if (type.startsWith("interaction")) return { icon: MessagesSquare, cls: "text-accent bg-accent-soft" };
+  if (type.startsWith("followup")) return { icon: PhoneCall, cls: "text-accent bg-accent-soft" };
+  if (type.startsWith("approval")) return { icon: Stamp, cls: "text-warn bg-warn-soft" };
+  if (type.startsWith("portfolio")) return { icon: BriefcaseBusiness, cls: "text-ink-2 bg-sunken" };
   if (type.startsWith("task")) return { icon: ListChecks, cls: "text-ink-2 bg-sunken" };
   if (type.startsWith("project")) return { icon: FolderKanban, cls: "text-accent bg-accent-soft" };
   if (type.startsWith("lead")) return { icon: Inbox, cls: "text-warn bg-warn-soft" };

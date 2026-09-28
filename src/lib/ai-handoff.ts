@@ -18,7 +18,7 @@ export type HandoffOptions = {
   includeFileLinks: boolean;
 };
 
-export type HandoffFile = { name: "PROJECT_CONTEXT.md" | "CLIENT_BRIEF.md" | "BUILD_INSTRUCTIONS.md"; content: string };
+export type HandoffFile = { name: "PROJECT_CONTEXT.md" | "CLIENT_BRIEF.md" | "BUILD_INSTRUCTIONS.md" | "CODEX_PROMPT.md"; content: string };
 export type HandoffPackage = { files: HandoffFile[]; megaPrompt: string };
 
 const ASSET_CATEGORIES = ["branding", "images", "site_texts", "references", "client_materials", "deliverables", "questionnaire", "other"] as const;
@@ -60,7 +60,7 @@ export async function buildHandoff(supabase: ServerClient, projectId: string, op
   if (!project) return null;
   const client = project.clients;
 
-  const [{ data: ws }, { data: links }, { data: refs }, { data: tasks }, { data: notes }, { data: subs }, { data: files }] = await Promise.all([
+  const [{ data: ws }, { data: links }, { data: refs }, { data: tasks }, { data: notes }, { data: subs }, { data: files }, { data: proposal }] = await Promise.all([
     supabase.from("workspace_settings").select("business_name").maybeSingle(),
     supabase.from("project_links").select("kind, label, url, note").eq("project_id", projectId).order("position"),
     supabase.from("project_references").select("title, url, category, note").eq("project_id", projectId).order("position"),
@@ -68,6 +68,15 @@ export async function buildHandoff(supabase: ServerClient, projectId: string, op
     supabase.from("notes").select("body, created_at").eq("project_id", projectId).eq("share_with_ai", true).order("created_at"),
     supabase.from("form_submissions").select("id, title, completed_at").eq("project_id", projectId).eq("status", "completed").order("completed_at"),
     supabase.from("files").select("id, original_name, mime_type, category, storage_path, bucket").eq("project_id", projectId).is("album_id", null).order("created_at"),
+    // The agreed scope (never the price) from the accepted proposal, if there is one.
+    supabase
+      .from("proposals")
+      .select("scope, delivery_estimate, proposal_items(kind, title, position)")
+      .or(`project_id.eq.${projectId},converted_project_id.eq.${projectId}`)
+      .eq("status", "accepted")
+      .order("responded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const subIds = (subs ?? []).map((s) => s.id);
@@ -113,6 +122,15 @@ export async function buildHandoff(supabase: ServerClient, projectId: string, op
     if (client?.email) ctx.push(`- **אימייל:** ${client.email}`);
   }
   ctx.push("");
+  if (proposal) {
+    const items = [...proposal.proposal_items].sort((a, b) => a.position - b.position);
+    ctx.push("## תכולה שסוכמה עם הלקוח (מהצעת המחיר שאושרה)");
+    if (proposal.scope) ctx.push(block(proposal.scope));
+    for (const i of items.filter((x) => x.kind === "included")) ctx.push(`- [כלול] ${oneLine(i.title)}`);
+    for (const i of items.filter((x) => x.kind === "excluded")) ctx.push(`- [לא כלול — לא לבנות] ${oneLine(i.title)}`);
+    if (proposal.delivery_estimate) ctx.push(`- **זמן אספקה שסוכם:** ${oneLine(proposal.delivery_estimate)}`);
+    ctx.push("");
+  }
   ctx.push("## קישורים");
   if (links?.length) {
     for (const l of links) ctx.push(`- **${l.label || projectLinkKind.label(l.kind as ProjectLinkKind)}:** ${l.url}${l.note ? ` — ${oneLine(l.note)}` : ""}`);
@@ -234,6 +252,32 @@ export async function buildHandoff(supabase: ServerClient, projectId: string, op
     "",
     ...out.flatMap((f) => [`===== ${f.name} =====`, "", f.content, ""]),
   ].join("\n");
+
+  // Codex works best with the context in the repo and a clear, testable task.
+  const repo = (links ?? []).find((l) => l.kind === "github")?.url;
+  const codex = [
+    `# Mega Prompt ל-Codex — ${project.name}`,
+    "",
+    `הקשר: ${typeLabel} עבור ${business || "הלקוח"}, עבור הסטודיו ${studio}.${repo ? ` ריפו: ${repo}` : " עדיין אין ריפו — צור פרויקט חדש לפי ה-Tech stack."}`,
+    "",
+    "## לפני הכול",
+    "1. שמור את PROJECT_CONTEXT.md, CLIENT_BRIEF.md ו-BUILD_INSTRUCTIONS.md בתיקייה docs/ בריפו.",
+    "2. צור (או עדכן) AGENTS.md בשורש הריפו: סיכום של BUILD_INSTRUCTIONS.md + פקודות build / lint / test של הפרויקט.",
+    "3. קרא את שלושת המסמכים. אל תמציא תוכן, מחירים או פרטי עסק — מה שחסר מסמנים TODO(תוכן).",
+    "",
+    "## איך לעבוד",
+    "- משימה אחת בכל פעם, לפי הסדר של המשימות הפתוחות ב-PROJECT_CONTEXT.md.",
+    "- כל שינוי: הרץ build ו-lint, ותקן עד שהם עוברים. אם יש בדיקות — הרץ אותן.",
+    "- RTL עברית, mobile-first (375px), נגישות WCAG 2.1 AA, בלי סודות בקוד.",
+    "- לא לגעת במה שמסומן [לא כלול — לא לבנות].",
+    "- בסוף כל משימה: סיכום קצר — מה שונה, איך בדקת, מה נשאר.",
+    "",
+    "## המשימה הראשונה",
+    open[0] ? `${open[0].title}${open[0].description ? ` — ${oneLine(open[0].description)}` : ""}` : "הקמת מבנה הפרויקט והעמוד הראשי לפי CLIENT_BRIEF.md.",
+    "",
+    "המסמכים המלאים מצורפים בחבילה (PROJECT_CONTEXT.md, CLIENT_BRIEF.md, BUILD_INSTRUCTIONS.md).",
+  ].join("\n");
+  out.push({ name: "CODEX_PROMPT.md", content: codex + "\n" });
 
   return { files: out, megaPrompt };
 }

@@ -13,7 +13,7 @@ import {
   projectStatusSchema,
   taskSchema,
 } from "@/lib/validation/schemas";
-import { notify } from "@/lib/push";
+import { notify, recipientsFor } from "@/lib/push";
 import { dbError, NOT_AUTHORIZED, parseForm, staffClient } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
 import type { ServerClient } from "@/lib/supabase/server";
@@ -191,9 +191,20 @@ export async function createPayment(fd: FormData): Promise<ActionResult<{ id: st
   const { data, error } = await s.supabase.from("payments").insert(p.data).select("id").single();
   if (error) return dbError(error, "רישום התשלום נכשל");
   let suggestDesign: { projectId: string; name: string } | null = null;
-  if (p.data.kind === "deposit") {
-    const { data: project } = await s.supabase.from("projects").select("id, name, status").eq("id", p.data.project_id).maybeSingle();
-    if (project && BEFORE_DESIGN.includes(project.status)) suggestDesign = { projectId: project.id, name: project.name };
+  const { data: project } = await s.supabase.from("projects").select("id, name, status").eq("id", p.data.project_id).maybeSingle();
+  if (p.data.kind === "deposit" && project && BEFORE_DESIGN.includes(project.status)) suggestDesign = { projectId: project.id, name: project.name };
+  if (project) {
+    const userId = s.userId;
+    // The partner who recorded it already knows.
+    notify(async () => {
+      const to = await recipientsFor("finance");
+      return to === "staff" ? to : to.filter((id) => id !== userId);
+    }, "payment_added", {
+      title: p.data.kind === "deposit" ? "התקבלה מקדמה" : "נרשם תשלום",
+      body: `${new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 0 }).format(p.data.amount)} · ${project.name}`,
+      url: `/projects/${project.id}#payments`,
+      tag: `payment-${data.id}`,
+    });
   }
   refresh();
   return ok({ id: data.id, suggestDesign }, "התשלום נרשם — היתרה עודכנה");
@@ -230,6 +241,7 @@ export async function createTask(fd: FormData): Promise<ActionResult<{ id: strin
   const { data, error } = await s.supabase.from("tasks").insert(p.data).select("id").single();
   if (error) return dbError(error, "יצירת המשימה נכשלה");
   await notifyAssignee(s, p.data.assigned_to, p.data.title, p.data.project_id, p.data.due_date);
+  await notifyAssignee(s, p.data.secondary_assigned_to, p.data.title, p.data.project_id, p.data.due_date);
   refresh();
   return ok({ id: data.id }, "המשימה נוספה");
 }
@@ -239,10 +251,11 @@ export async function updateTask(id: string, fd: FormData): Promise<ActionResult
   if (!s) return NOT_AUTHORIZED;
   const p = parseForm(taskSchema, fd);
   if (!p.success) return p.result;
-  const { data: before } = await s.supabase.from("tasks").select("assigned_to").eq("id", id).maybeSingle();
+  const { data: before } = await s.supabase.from("tasks").select("assigned_to, secondary_assigned_to").eq("id", id).maybeSingle();
   const { error } = await s.supabase.from("tasks").update(p.data).eq("id", id);
   if (error) return dbError(error, "עדכון המשימה נכשל");
   if (before && before.assigned_to !== p.data.assigned_to) await notifyAssignee(s, p.data.assigned_to, p.data.title, p.data.project_id, p.data.due_date);
+  if (before && before.secondary_assigned_to !== p.data.secondary_assigned_to) await notifyAssignee(s, p.data.secondary_assigned_to, p.data.title, p.data.project_id, p.data.due_date);
   refresh();
   return ok({ id }, "המשימה עודכנה");
 }
@@ -307,16 +320,26 @@ export async function addChecklist(projectId: string, titles: string[], list: "d
 }
 
 /** Pickers for the task form: active staff + other open tasks of the same project. */
-export async function taskFormOptions(projectId: string | null, taskId?: string): Promise<ActionResult<{ staff: { value: string; label: string }[]; tasks: { value: string; label: string }[] }>> {
+export async function taskFormOptions(
+  projectId: string | null,
+  taskId?: string,
+): Promise<ActionResult<{ staff: { value: string; label: string }[]; tasks: { value: string; label: string }[]; owners: Record<string, string>; projectOwner: string | null }>> {
   const s = await staffClient();
   if (!s) return NOT_AUTHORIZED;
-  const [{ data: staff }, { data: tasks }] = await Promise.all([
+  const [{ data: staff }, { data: tasks }, { data: resp }, { data: project }] = await Promise.all([
     s.supabase.from("profiles").select("id, full_name, email").eq("is_active", true).order("full_name"),
     projectId ? s.supabase.from("tasks").select("id, title").eq("project_id", projectId).neq("status", "done").order("position").limit(200) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+    s.supabase.from("team_responsibilities").select("category, assigned_to").eq("is_active", true).not("assigned_to", "is", null).order("position"),
+    projectId ? s.supabase.from("projects").select("owner_id").eq("id", projectId).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  // Category → who owns it (first active responsibility wins), for the assignee suggestion.
+  const owners: Record<string, string> = {};
+  for (const r of resp ?? []) if (r.assigned_to && !owners[r.category]) owners[r.category] = r.assigned_to;
   return ok({
     staff: (staff ?? []).map((p) => ({ value: p.id, label: p.full_name || p.email })),
     tasks: (tasks ?? []).filter((t) => t.id !== taskId).map((t) => ({ value: t.id, label: t.title })),
+    owners,
+    projectOwner: project?.owner_id ?? null,
   });
 }
 

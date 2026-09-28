@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FormGrid, Input, Select, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
-import { taskPriority, taskStatus } from "@/lib/domain/labels";
+import { taskPriority, taskStatus, workCategory } from "@/lib/domain/labels";
 import { createTask, taskFormOptions, updateTask } from "@/lib/actions/crm";
 import { useFormAction } from "@/lib/use-form-action";
 import { useOpenState, type OpenProps } from "@/lib/use-open";
@@ -58,9 +58,14 @@ export function TaskFormModal({
 
   // Staff + sibling tasks are loaded when the form opens, so every place that
   // shows a task can edit it without passing option lists around.
-  const [options, setOptions] = useState<{ staff: Opt[]; tasks: Opt[] } | null>(null);
+  const [options, setOptions] = useState<{ staff: Opt[]; tasks: Opt[]; owners: Record<string, string>; projectOwner: string | null } | null>(null);
   const [pickedProject, setPickedProject] = useState(fixedProject ?? "");
   const optionsProject = fixedProject ?? pickedProject;
+  // Owner: suggested from the work area's responsibility until the user picks someone.
+  const [category, setCategory] = useState(task?.category ?? "");
+  const [assignee, setAssignee] = useState(task?.assigned_to ?? "");
+  const [secondary, setSecondary] = useState(task?.secondary_assigned_to ?? "");
+  const [picked, setPicked] = useState(Boolean(task?.assigned_to));
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -71,6 +76,9 @@ export function TaskFormModal({
       alive = false;
     };
   }, [open, optionsProject, task?.id]);
+  const suggested = options ? (options.owners[category] ?? (category ? null : options.projectOwner)) : null;
+  const effectiveAssignee = picked ? assignee : (suggested ?? assignee);
+  const suggestedName = !picked && suggested ? options?.staff.find((o) => o.value === suggested)?.label : null;
 
   return (
     <Modal
@@ -118,14 +126,43 @@ export function TaskFormModal({
               </Select>
             )}
           </Field>
-          <Field label="אחראי" error={errors.assigned_to}>
+          <Field label="סוג עבודה" error={errors.category} hint="לפיו מוצע אחראי לפי תחומי האחריות">
             {(p) => (
-              // Keyed on load so the saved assignee is selected once options arrive.
-              <Select {...p} key={options ? "ready" : "loading"} name="assigned_to" defaultValue={task?.assigned_to ?? ""}>
+              <Select {...p} name="category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">ללא</option>
+                {workCategory.list.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="אחראי" error={errors.assigned_to} hint={suggestedName ? `הוצע לפי תחום האחריות: ${suggestedName}` : undefined}>
+            {(p) => (
+              <Select
+                {...p}
+                name="assigned_to"
+                value={effectiveAssignee}
+                onChange={(e) => {
+                  setAssignee(e.target.value);
+                  setPicked(true);
+                }}
+              >
                 <option value="">ללא אחראי</option>
                 {(options?.staff ?? []).map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="אחראי משני" error={errors.secondary_assigned_to} hint="לא חובה — מי שעוזר/ת">
+            {(p) => (
+              <Select {...p} name="secondary_assigned_to" value={secondary === effectiveAssignee ? "" : secondary} onChange={(e) => setSecondary(e.target.value)}>
+                <option value="">ללא</option>
+                {(options?.staff ?? [])
+                  .filter((o) => o.value !== effectiveAssignee)
+                  .map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
               </Select>
             )}
           </Field>

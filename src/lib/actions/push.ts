@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { NOTIFY_EVENTS, sendPush, vapidKeys } from "@/lib/push";
+import { PREF_KEYS, sendPush, vapidKeys } from "@/lib/push";
 import { dbError, NOT_AUTHORIZED, staffClient } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
 
@@ -53,14 +53,17 @@ export async function sendTestPush(): Promise<ActionResult> {
   return ok(undefined, sent === 1 ? "נשלחה התראת בדיקה" : `נשלחה התראת בדיקה ל-${sent} מכשירים`);
 }
 
-const prefsSchema = z.record(z.enum(NOTIFY_EVENTS), z.boolean());
+const prefsSchema = z.partialRecord(z.enum(PREF_KEYS), z.boolean());
 
 export async function setNotifyPrefs(prefs: unknown): Promise<ActionResult> {
   const s = await staffClient();
   if (!s) return NOT_AUTHORIZED;
   const p = prefsSchema.safeParse(prefs);
   if (!p.success) return fail("הגדרות לא תקינות.");
-  const { error } = await s.supabase.from("profiles").update({ notify_prefs: p.data }).eq("id", s.userId);
+  // Merge: a screen that shows only some switches never resets the others.
+  const { data: me } = await s.supabase.from("profiles").select("notify_prefs").eq("id", s.userId).maybeSingle();
+  const current = me?.notify_prefs && typeof me.notify_prefs === "object" && !Array.isArray(me.notify_prefs) ? me.notify_prefs : {};
+  const { error } = await s.supabase.from("profiles").update({ notify_prefs: { ...current, ...p.data } }).eq("id", s.userId);
   if (error) return dbError(error, "שמירת ההגדרות נכשלה");
   revalidatePath("/settings");
   return ok(undefined, "העדפות ההתראות נשמרו");

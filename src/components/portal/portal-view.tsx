@@ -1,9 +1,9 @@
-import { CheckCircle2, Download, ExternalLink, FileText, Mail, Phone, PencilLine } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ClipboardList, Download, ExternalLink, FileSignature, FileText, Mail, Phone, PencilLine, ReceiptText, Wallet } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ApprovalResponse } from "@/components/portal/approval-response";
 import type { PortalFile, PublicProject } from "@/lib/data/public";
 import { approvalKind, projectLinkKind, type ApprovalKind, type ProjectLinkKind } from "@/lib/domain/labels";
-import { displayUrl, formatDay, formatPhone } from "@/lib/format";
+import { displayUrl, formatDate, formatDay, formatMoney, formatPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** The studio's internal stages, told the way a client thinks about them. */
@@ -44,11 +44,20 @@ function FileTile({ file }: { file: PortalFile }) {
 
 /** The client-facing project page. Receives only the allowlisted data from getPublicProject. */
 export function PortalView({ token, data }: { token: string; data: Extract<PublicProject, { state: "open" }> }) {
-  const { project, approvals, files, links } = data;
+  const { project, approvals, files, links, questionnaires, proposals, contracts, payments } = data;
   const phase = PHASES.findIndex((p) => p.statuses.includes(project.status));
   const done = project.status === "completed";
   const pending = approvals.filter((a) => a.status === "pending");
   const answered = approvals.filter((a) => a.status !== "pending");
+  const progress = done ? 100 : phase >= 0 ? Math.round(((phase + 0.5) / PHASES.length) * 100) : 0;
+  const nextPhase = !done && phase >= 0 && phase < PHASES.length - 1 ? PHASES[phase + 1].label : null;
+  // Everything waiting on the client, each with the link that resolves it.
+  const todo = [
+    ...questionnaires.map((q) => ({ key: `q-${q.token}`, icon: ClipboardList, label: `למלא את השאלון "${q.title}"`, href: `/form/${q.token}` })),
+    ...proposals.filter((x) => x.status !== "accepted").map((x) => ({ key: `o-${x.token}`, icon: ReceiptText, label: `לעבור על הצעת המחיר "${x.title}"`, href: `/o/${x.token}` })),
+    ...contracts.filter((c) => c.status === "sent" && c.token).map((c) => ({ key: `s-${c.token}`, icon: FileSignature, label: `לחתום על "${c.title}"`, href: `/s/${c.token}` })),
+  ];
+  const depositDue = payments && payments.depositDue > 0 && ["awaiting_deposit"].includes(project.status);
 
   return (
     <div className="min-h-dvh bg-paper">
@@ -80,14 +89,37 @@ export function PortalView({ token, data }: { token: string; data: Extract<Publi
             })}
           </ol>
           <p className="mt-4 text-base text-ink-2">
-            {done ? "הפרויקט הושלם. תודה שעבדתם איתנו!" : phase >= 0 ? <>אנחנו כרגע בשלב <strong className="font-semibold text-ink">{PHASES[phase].label}</strong>.</> : null}
+            {done ? "הפרויקט הושלם. תודה שעבדתם איתנו!" : phase >= 0 ? <>אנחנו כרגע בשלב <strong className="font-semibold text-ink">{PHASES[phase].label}</strong>{nextPhase && <> · השלב הבא: {nextPhase}</>}.</> : null}
+          </p>
+          <p className="mt-1 text-sm text-ink-3">
+            התקדמות משוערת: <span className="num">{progress}%</span>
+            {project.deadline && !done && <> · יעד: {formatDate(project.deadline)}</>}
           </p>
         </section>
 
-        {(project.client_action || pending.length > 0) && (
+        {(project.client_action || pending.length > 0 || todo.length > 0 || depositDue) && (
           <section aria-labelledby="needed-h" className="rounded-xl border border-accent/25 bg-accent-soft/50 p-5">
             <h2 id="needed-h" className="text-base font-semibold text-accent-ink">מה אנחנו צריכים מכם עכשיו</h2>
             {project.client_action && <p className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-ink">{project.client_action}</p>}
+            {todo.length > 0 && (
+              <ul className="mt-3 flex flex-col gap-2">
+                {todo.map(({ key, icon: Icon, label, href }) => (
+                  <li key={key}>
+                    <a href={href} className="flex min-h-12 items-center gap-3 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink shadow-1 hover:border-accent/40">
+                      <Icon className="size-4 shrink-0 text-accent" aria-hidden />
+                      <span className="min-w-0 flex-1">{label}</span>
+                      <ChevronLeft className="size-4 shrink-0 text-ink-3" aria-hidden />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {depositDue && payments && (
+              <p className="mt-2 flex items-center gap-2 text-sm text-ink-2">
+                <Wallet className="size-4 text-accent" aria-hidden />
+                מקדמה להתחלת העבודה: <bdi dir="ltr" className="font-semibold text-ink">{formatMoney(payments.depositDue)}</bdi>
+              </p>
+            )}
             {pending.length > 0 && (
               <p className="mt-1.5 text-sm text-ink-2">
                 {pending.length === 1 ? "יש בקשת אישור אחת שמחכה לכם למטה." : `יש ${pending.length} בקשות אישור שמחכות לכם למטה.`}
@@ -146,6 +178,54 @@ export function PortalView({ token, data }: { token: string; data: Extract<Publi
                 <ApprovalResponse token={token} approvalId={a.id} />
               </article>
             ))}
+          </section>
+        )}
+
+        {payments && (
+          <section aria-labelledby="pay-h" className="rounded-xl border border-line bg-surface p-5 shadow-1">
+            <h2 id="pay-h" className="text-base font-semibold text-ink">תשלומים</h2>
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {[
+                ["סה״כ", payments.total],
+                ["שולם", payments.paid],
+                ["יתרה", payments.balance],
+              ].map(([k, v]) => (
+                <div key={k as string} className="rounded-lg bg-sunken/70 px-2 py-2.5">
+                  <dt className="text-xs text-ink-3">{k}</dt>
+                  <dd className="mt-0.5 font-semibold text-ink"><bdi dir="ltr">{formatMoney(v as number)}</bdi></dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+
+        {(contracts.some((c) => c.status === "signed") || proposals.some((x) => x.status === "accepted")) && (
+          <section aria-labelledby="docs-h">
+            <h2 id="docs-h" className="mb-3 text-base font-semibold text-ink">מסמכים</h2>
+            <ul className="flex flex-col divide-y divide-line rounded-xl border border-line bg-surface shadow-1">
+              {proposals
+                .filter((x) => x.status === "accepted")
+                .map((x) => (
+                  <li key={x.token}>
+                    <a href={`/o/${x.token}`} className="flex min-h-12 items-center gap-3 px-4 py-3 text-sm hover:bg-sunken/40">
+                      <ReceiptText className="size-4 shrink-0 text-ink-3" aria-hidden />
+                      <span className="min-w-0 flex-1 text-ink">{x.title}</span>
+                      <span className="text-xs text-ok">אושרה</span>
+                    </a>
+                  </li>
+                ))}
+              {contracts
+                .filter((c) => c.status === "signed")
+                .map((c) => (
+                  <li key={c.title + c.signed_at}>
+                    <a href={c.token ? `/s/${c.token}` : undefined} className="flex min-h-12 items-center gap-3 px-4 py-3 text-sm hover:bg-sunken/40">
+                      <FileSignature className="size-4 shrink-0 text-ink-3" aria-hidden />
+                      <span className="min-w-0 flex-1 text-ink">{c.title}</span>
+                      <span className="text-xs text-ok">נחתם{c.signed_at ? ` · ${formatDate(c.signed_at)}` : ""}</span>
+                    </a>
+                  </li>
+                ))}
+            </ul>
           </section>
         )}
 

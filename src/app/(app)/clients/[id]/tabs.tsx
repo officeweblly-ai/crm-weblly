@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, FileSignature, FolderKanban, FolderPlus, Plus, Receipt, Send, StickyNote } from "lucide-react";
+import { ClipboardList, FileSignature, FolderKanban, FolderPlus, MessagesSquare, Plus, Receipt, Send, StickyNote } from "lucide-react";
 import { Timeline } from "@/components/activity/timeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import { SendQuestionnaireModal } from "@/components/questionnaires/send-questio
 import { SubmissionsList } from "@/components/questionnaires/submissions-list";
 import { TaskFormModal } from "@/components/tasks/task-form";
 import { TaskList } from "@/components/tasks/task-list";
+import { FollowUpModal, InteractionModal } from "@/components/relationship/relationship-forms";
+import { FollowUpItem, InteractionItem, type FollowUpRow } from "@/components/relationship/relationship-rows";
 import {
   getSubmission,
   listActivity,
@@ -29,10 +31,12 @@ import {
   listProjects,
   listSubmissions,
   listTasks,
+  staffOptions,
   withThumbs,
 } from "@/lib/data/crm";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { leadSource, submissionStatus, type ProjectType } from "@/lib/domain/labels";
-import { formatDateTime, timeAgo } from "@/lib/format";
+import { formatDate, formatDateTime, relativeDue, timeAgo } from "@/lib/format";
 import type { Tables, Views } from "@/lib/supabase/database.types";
 
 type Opt = { value: string; label: string; clientId: string };
@@ -135,6 +139,13 @@ export async function Overview({ clientId, client, financials }: { clientId: str
       </div>
 
       <aside className="flex min-w-0 flex-col gap-5">
+        <Panel title="קשר עם הלקוח" action={<Button asChild variant="link" size="sm"><Link href={`/clients/${clientId}?tab=relationship`}>הכול</Link></Button>}>
+          <DataList className="grid-cols-2 sm:grid-cols-2">
+            <DataItem label="קשר אחרון">{client.last_interaction_at ? timeAgo(client.last_interaction_at) : "לא נרשם"}</DataItem>
+            <DataItem label="מעקב הבא">{client.next_follow_up_date ? relativeDue(client.next_follow_up_date) : null}</DataItem>
+          </DataList>
+        </Panel>
+
         <Panel title="פרטי קשר">
           <DataList className="sm:grid-cols-1">
             <DataItem label="טלפון"><PhoneLink phone={client.phone} /></DataItem>
@@ -345,5 +356,80 @@ export async function ActivityTab({ clientId }: { clientId: string }) {
         {items.length ? <Timeline items={items} /> : <EmptyState compact icon={StickyNote} title="אין פעילות" />}
       </CardBody>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// V3 — the relationship: history, money over time, contact and follow-ups.
+// ---------------------------------------------------------------------------
+export async function RelationshipTab({ clientId, client, projects }: { clientId: string; client: Tables<"clients">; projects: Opt[] }) {
+  const supabase = await createServerClient();
+  const [{ data: rel }, { data: interactions }, { data: followUps }, staff] = await Promise.all([
+    supabase.from("client_relationship").select("*").eq("client_id", clientId).maybeSingle(),
+    supabase.from("client_interactions").select("*, profiles(full_name, email)").eq("client_id", clientId).order("occurred_at", { ascending: false }).limit(100),
+    supabase.from("follow_ups").select("*, profiles!follow_ups_assigned_to_fkey(full_name, email)").eq("client_id", clientId).neq("status", "cancelled").order("due_date").limit(60),
+    staffOptions(),
+  ]);
+  const open = (followUps ?? []).filter((f) => f.status === "open");
+  const done = (followUps ?? []).filter((f) => f.status === "done").slice(-5).reverse();
+  const toRow = (f: NonNullable<typeof followUps>[number]): FollowUpRow => ({
+    id: f.id, due_date: f.due_date, reason: f.reason, note: f.note, status: f.status,
+    assignee: f.profiles ? (f.profiles.full_name || f.profiles.email).split(" ")[0] : null,
+  });
+  const facts: [string, React.ReactNode][] = [
+    ["לקוח מאז", formatDate(client.created_at.slice(0, 10))],
+    ["רכישה ראשונה", rel?.first_purchase_date ? formatDate(rel.first_purchase_date) : null],
+    ["רכישה אחרונה", rel?.last_purchase_date ? formatDate(rel.last_purchase_date) : null],
+    ["תשלום אחרון", rel?.last_payment_date ? formatDate(rel.last_payment_date) : null],
+    ["סה״כ הכנסות מהלקוח", <Money key="m" value={rel?.total_revenue ?? 0} className="font-semibold" />],
+    ["פרויקטים", rel ? `${rel.project_count}${rel.active_project_count ? ` (${rel.active_project_count} פעילים)` : ""}` : "0"],
+    ["קשר אחרון", client.last_interaction_at ? timeAgo(client.last_interaction_at) : "לא נרשם"],
+    ["מעקב הבא", client.next_follow_up_date ? relativeDue(client.next_follow_up_date) : null],
+    ["שירותים נוכחיים", client.services],
+  ];
+  const addInteraction = <InteractionModal clientId={clientId} projects={projects} trigger={<Button size="sm"><Plus aria-hidden />אינטראקציה</Button>} />;
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="flex min-w-0 flex-col gap-5">
+        <Panel title="מעקבים" flush action={<FollowUpModal clientId={clientId} staff={staff} trigger={<Button size="sm" variant="secondary"><Plus aria-hidden />מעקב</Button>} />}>
+          {open.length ? (
+            <ul className="divide-y divide-line">{open.map((f) => <FollowUpItem key={f.id} f={toRow(f)} />)}</ul>
+          ) : (
+            <p className="px-5 py-4 text-sm text-ink-3">אין מעקבים פתוחים. מעקב נפתח גם אוטומטית כשרושמים אינטראקציה עם תאריך.</p>
+          )}
+          {done.length > 0 && (
+            <details className="border-t border-line">
+              <summary className="cursor-pointer list-none px-5 py-3 text-sm font-medium text-ink-3 hover:text-ink">בוצעו לאחרונה ({done.length})</summary>
+              <ul className="divide-y divide-line">{done.map((f) => <FollowUpItem key={f.id} f={toRow(f)} />)}</ul>
+            </details>
+          )}
+        </Panel>
+        <Panel title="היסטוריית קשר" action={addInteraction}>
+          {interactions?.length ? (
+            <ol className="flex flex-col">
+              {interactions.map((i, idx) => (
+                <InteractionItem
+                  key={i.id}
+                  last={idx === interactions.length - 1}
+                  i={{ ...i, user: i.profiles ? (i.profiles.full_name || i.profiles.email).split(" ")[0] : null }}
+                />
+              ))}
+            </ol>
+          ) : (
+            <EmptyState compact icon={MessagesSquare} title="עוד לא נרשמה אינטראקציה" description="שיחה, וואטסאפ או פגישה — רושמים כאן, והמערכת זוכרת מתי דיברתם לאחרונה ומתי לחזור." action={addInteraction} />
+          )}
+        </Panel>
+      </div>
+      <aside className="flex min-w-0 flex-col gap-5">
+        <Panel title="הקשר העסקי">
+          <DataList className="sm:grid-cols-1">
+            {facts.map(([label, value]) => (
+              <DataItem key={label} label={label}>{value}</DataItem>
+            ))}
+          </DataList>
+        </Panel>
+      </aside>
+    </div>
   );
 }

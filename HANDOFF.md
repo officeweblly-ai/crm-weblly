@@ -111,13 +111,54 @@ Patterns to follow:
   `VAPID_PRIVATE_KEY` if set, otherwise generated once into `app_private` (service-role only). Don't rotate them —
   every device would need to re-enable notifications.
 
+### V3 — daily workflow (2026-09-29) — additive, from `WEBLLY_Daily_Workflow_Spec.md`
+- **Team** (`/settings/team`): partner profile (job title, phone, colour, working days, hours, `morning_time`) and
+  **responsibilities** (`team_responsibilities`: title, category, owner, active). Nothing is hard-coded to a name:
+  `responsible_for(category)` (SQL) / `recipientsFor(category)` (push) resolve the owner; no owner → shared with everyone.
+  Work categories are one list in SQL + `workCategory` in `labels.ts`.
+- **Tasks:** `secondary_assigned_to`, `category` (suggests the owner in the form — always overridable), status
+  `waiting_team`, `auto_key` (automation-created tasks never duplicate). Quick filters on `/tasks`: mine / each partner / unassigned / today / overdue / waiting.
+- **Work engine** `src/lib/work-engine.ts` (pure, tested in `work-engine.test.ts`) + loader `src/lib/data/work.ts`.
+  Rules only, no AI. Ranks: blocked → overdue → client waiting → today → deadline → follow-up → questionnaire → proposal →
+  contract/payment → stalled → suggestions. Suggestions (portfolio, social, missing links/handoff, quiet clients) only
+  when a person has < 3 urgent items. Drives `/today` (personal + team view), the dashboard blocks and the morning push.
+- **Morning push** `/api/cron/digest`: idempotent — one summary per person per Israeli day, only on working days and
+  after their `morning_time`; claimed in `notification_log` (unique user/kind/day) before sending. Triggered every 15 min
+  by **pg_cron + pg_net** (set up once with `npm run schedule:morning -- <production URL>`; the key lives in
+  `app_private.cron_key`), plus a daily Vercel Cron fallback (needs `CRON_SECRET` in Vercel once `cron_key` exists).
+  Per-person switches in `profiles.notify_prefs` (events + `digest_*` parts).
+- **Client relationship:** `client_interactions` (updates `clients.last_interaction_at`, opens a follow-up when dated),
+  `follow_ups` (keeps `clients.next_follow_up_date`), view `client_relationship` (first/last purchase, last payment,
+  revenue, projects — money still only from payments), `alert_states` (snooze/dismiss of computed "inactive client"
+  alerts, shared by the team). Client statuses added: lead / new / returning / inactive. Client tab "קשר".
+- **Proposals** (`/proposals`, `proposals` + `proposal_items`): builder pre-filled from a questionnaire
+  (`draftFromQuestionnaire` in `src/lib/domain/proposals.ts` — restates answers, never invents prices), secure client
+  link `/o/<token>` (view → viewed; accept with name / decline via `respond_to_proposal()`, service role only),
+  duplicate, print/PDF, convert to project (existing project prices are only filled when empty), contract from proposal
+  (`/contracts/new?proposal=`). Accepting opens a "prepare contract" task for the contracts owner.
+- **Digital signature:** "send for signature" freezes the text in `contract_versions` (immutable, SHA-256 of canonical
+  JSON — `src/lib/contract-hash.ts`) and creates `/s/<token>`. The client draws a signature; `sign_contract()` re-checks
+  token + version + hash and writes `contract_signatures` (name, ID, email, PNG, IP, UA, time). Editing a sent/signed
+  agreement bumps the version and returns it to draft (DB trigger `contracts_versioning`) — the signed copy never
+  changes. Signed copy: `/contracts/<id>/signed?v=N`; the signature PNG is also stored in the client's files.
+- **Client portal** `/p/<token>` now also shows progress, next stage, deadline, what's needed (questionnaire / proposal /
+  contract links, deposit), a payments summary and signed documents.
+- **Also:** project owner (`projects.owner_id`; change requests go to the owner, else development), link kinds
+  Claude Code + DNS, reference types + preview image (`src/lib/link-preview.ts`, public hosts only), approval kind
+  "feature", portfolio display name / services / featured, AI handoff adds the agreed scope and `CODEX_PROMPT.md`,
+  "project completed" also offers a 30-day follow-up and a balance check.
+- **Social reels:** album section `reels` ("מוכן לעלות כריל"), `files.caption` / `files.posted_at`. `/social?tab=ready`
+  lists every unposted reel; on iPhone "שיתוף" opens the share sheet (Instagram / Save Video) and copies the caption.
+  Album page shows one section at a time (chips) to keep the phone screen calm.
+- **Mobile nav:** the bottom bar is now היום / לקוחות / פרויקטים / משימות / עוד (dashboard moved into "עוד").
+
 ## 5. Environment & database
 
 `.env.local` (never commit): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
 `NEXT_PUBLIC_SITE_URL`, `SUPABASE_DB_URL` (direct/pooler connection string, only for scripts).
 
 Migrations are tracked in `internal.app_migrations`. Apply new ones with `npm run db:migrate`.
-Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications.
+Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications, 1000 v3_enums, 1100 v3_daily_workflow.
 **Network note:** the direct host `db.<ref>.supabase.co` is IPv6-only and does not resolve on IPv4-only networks
 (`getaddrinfo ENOTFOUND`). Use the Session pooler instead: user `postgres.<ref>`, host
 `aws-0-ap-northeast-1.pooler.supabase.com`, port 5432 (same password) — e.g. `SUPABASE_DB_URL=… npm run db:migrate`.
@@ -155,7 +196,7 @@ npm run lint && npx tsc --noEmit && npm run test:db && npm run test:unit && npx 
 ## 8. Ideas not built (ask the owner before building)
 
 - Email/WhatsApp reminders (activity_logs is the natural trigger source).
-- Contract templates + e-signature (`contracts.template_id`, `signature_provider` columns exist).
+- A certified e-signature provider (the built-in signature is a drawn signature + audit trail, not a qualified certificate).
 - Payment gateway (`payments.external_provider/external_id` exist).
 - Zip download of a whole Social album.
 - Realtime updates (currently pages refresh on navigation/action; data is shared instantly between teammates).

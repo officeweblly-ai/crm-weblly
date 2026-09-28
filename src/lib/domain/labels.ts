@@ -73,12 +73,19 @@ export const projectType = options<ProjectType>([
 
 /** Where the relationship with the client stands (projects have their own stage). */
 export const clientStatus = options<ClientStatus>([
+  { value: "lead", label: "ליד", tone: "neutral" },
+  { value: "new", label: "לקוח חדש", tone: "accent" },
   { value: "active", label: "בעבודה פעילה", tone: "ok" },
   { value: "maintenance", label: "תפעול ותחזוקת אתר", tone: "accent" },
   { value: "on_hold", label: "בהמתנה", tone: "warn" },
-  { value: "completed", label: "סיים עבודה", tone: "info" },
+  { value: "returning", label: "לקוח חוזר", tone: "ok" },
+  { value: "completed", label: "לקוח עבר", tone: "info" },
+  { value: "inactive", label: "לא פעיל", tone: "neutral" },
   { value: "archived", label: "בארכיון", tone: "neutral" },
 ]);
+/** "Current" in lists and filters: the relationship is live. */
+export const CURRENT_CLIENT_STATUSES: ClientStatus[] = ["new", "active", "maintenance", "on_hold", "returning"];
+export const PAST_CLIENT_STATUSES: ClientStatus[] = ["completed", "inactive", "archived"];
 
 export const submissionStatus = options<SubmissionStatus>([
   { value: "created", label: "נוצר", tone: "neutral" },
@@ -141,8 +148,9 @@ export const socialAlbumStatus = options<SocialAlbumStatus>([
   { value: "published", label: "פורסם", tone: "ok" },
 ]);
 
-export type AlbumSection = "process" | "before_after" | "final" | "behind_scenes" | "other";
+export type AlbumSection = "reels" | "process" | "before_after" | "final" | "behind_scenes" | "other";
 export const albumSection = options<AlbumSection>([
+  { value: "reels", label: "מוכן לעלות כריל" },
   { value: "process", label: "תהליך הבנייה" },
   { value: "before_after", label: "לפני / אחרי" },
   { value: "final", label: "התוצר הסופי" },
@@ -159,8 +167,9 @@ export const contractStatus = options<ContractStatus>([
 
 export const taskStatus = options<TaskStatus>([
   { value: "todo", label: "לא התחיל", tone: "neutral" },
-  { value: "in_progress", label: "בעבודה", tone: "accent" },
+  { value: "in_progress", label: "בטיפול", tone: "accent" },
   { value: "waiting_client", label: "ממתין ללקוח", tone: "warn" },
+  { value: "waiting_team", label: "ממתין לצוות", tone: "info" },
   { value: "blocked", label: "חסום", tone: "danger" },
   { value: "done", label: "הושלם", tone: "ok" },
 ]);
@@ -205,8 +214,8 @@ export const DEV_CHECKLIST: { title: string; priority: TaskPriority }[] = [
 // V2 — project links, references, approvals, portfolio
 // ---------------------------------------------------------------------------
 export type ProjectLinkKind =
-  | "github" | "production" | "staging" | "vercel" | "supabase" | "figma" | "claude" | "codex"
-  | "analytics" | "search_console" | "google_ads" | "domain" | "custom";
+  | "github" | "production" | "staging" | "vercel" | "supabase" | "figma" | "claude" | "claude_code" | "codex"
+  | "analytics" | "search_console" | "google_ads" | "domain" | "dns" | "custom";
 export const projectLinkKind = options<ProjectLinkKind>([
   { value: "github", label: "GitHub Repository" },
   { value: "production", label: "Production (האתר החי)" },
@@ -215,32 +224,40 @@ export const projectLinkKind = options<ProjectLinkKind>([
   { value: "supabase", label: "Supabase" },
   { value: "figma", label: "Figma" },
   { value: "claude", label: "Claude" },
+  { value: "claude_code", label: "Claude Code" },
   { value: "codex", label: "Codex" },
   { value: "analytics", label: "Analytics" },
   { value: "search_console", label: "Search Console" },
   { value: "google_ads", label: "Google Ads" },
-  { value: "domain", label: "דומיין / DNS" },
+  { value: "domain", label: "דומיין" },
+  { value: "dns", label: "DNS" },
   { value: "custom", label: "קישור אחר" },
 ]);
 /** Only these can be shown to the client — never admin consoles. */
 export const CLIENT_SAFE_LINK_KINDS: ProjectLinkKind[] = ["production", "staging", "figma", "custom"];
 
-export type ReferenceCategory = "hero" | "animation" | "mobile" | "competitor" | "general" | "other";
+export type ReferenceCategory = "website" | "hero" | "animation" | "mobile" | "competitor" | "pinterest" | "dribbble" | "awwwards" | "video" | "general" | "other";
 export const referenceCategory = options<ReferenceCategory>([
+  { value: "website", label: "אתר", tone: "neutral" },
   { value: "hero", label: "Hero", tone: "accent" },
   { value: "animation", label: "אנימציה", tone: "info" },
   { value: "mobile", label: "מובייל", tone: "info" },
   { value: "competitor", label: "מתחרה", tone: "warn" },
+  { value: "pinterest", label: "Pinterest", tone: "neutral" },
+  { value: "dribbble", label: "Dribbble", tone: "neutral" },
+  { value: "awwwards", label: "Awwwards", tone: "neutral" },
+  { value: "video", label: "וידאו", tone: "neutral" },
   { value: "general", label: "כללי", tone: "neutral" },
   { value: "other", label: "אחר", tone: "neutral" },
 ]);
 
-export type ApprovalKind = "hero" | "design_desktop" | "design_mobile" | "page" | "full_site" | "other";
+export type ApprovalKind = "hero" | "design_desktop" | "design_mobile" | "page" | "feature" | "full_site" | "other";
 export const approvalKind = options<ApprovalKind>([
   { value: "hero", label: "אזור ה-Hero" },
   { value: "design_desktop", label: "עיצוב דסקטופ" },
   { value: "design_mobile", label: "עיצוב מובייל" },
   { value: "page", label: "עמוד מסוים" },
+  { value: "feature", label: "פיצ׳ר" },
   { value: "full_site", label: "האתר המלא" },
   { value: "other", label: "אחר" },
 ]);
@@ -268,4 +285,63 @@ export const portfolioMediaKind = options<PortfolioMediaKind>([
   { value: "before", label: "לפני" },
   { value: "after", label: "אחרי" },
   { value: "other", label: "אחר" },
+]);
+
+// ---------------------------------------------------------------------------
+// V3 — team, relationship, proposals, signatures
+// ---------------------------------------------------------------------------
+/** Work areas: a responsibility owns one, a task can belong to one. Same list in SQL. */
+export type WorkCategory =
+  | "development" | "design" | "client_communication" | "sales" | "proposals" | "contracts" | "finance"
+  | "project_management" | "social" | "content" | "deployment" | "domains" | "maintenance" | "other";
+export const workCategory = options<WorkCategory>([
+  { value: "development", label: "פיתוח" },
+  { value: "design", label: "עיצוב" },
+  { value: "client_communication", label: "תקשורת עם לקוחות" },
+  { value: "sales", label: "מכירות ולידים" },
+  { value: "proposals", label: "הצעות מחיר" },
+  { value: "contracts", label: "חוזים" },
+  { value: "finance", label: "גבייה וכספים" },
+  { value: "project_management", label: "ניהול פרויקטים" },
+  { value: "social", label: "סושיאל" },
+  { value: "content", label: "תוכן וחומרים" },
+  { value: "deployment", label: "העלאה לאוויר" },
+  { value: "domains", label: "דומיינים ו-DNS" },
+  { value: "maintenance", label: "תחזוקה" },
+  { value: "other", label: "אחר" },
+]);
+
+/** Sunday-first, like the Israeli work week. Index = JS getDay(). */
+export const WEEKDAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"] as const;
+export const WEEKDAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"] as const;
+
+/** "א׳–ה׳" for the usual week, otherwise the day letters. */
+export function daysSummary(days: number[]): string {
+  const d = [...days].sort();
+  if (!d.length) return "ללא ימי עבודה";
+  if (d.join() === "0,1,2,3,4") return "א׳–ה׳";
+  if (d.join() === "0,1,2,3,4,5") return "א׳–ו׳";
+  return d.map((x) => WEEKDAYS[x]).join(" ");
+}
+
+export type InteractionKind = "phone" | "whatsapp" | "meeting" | "email" | "proposal" | "follow_up" | "internal_note" | "other";
+export const interactionKind = options<InteractionKind>([
+  { value: "phone", label: "שיחת טלפון" },
+  { value: "whatsapp", label: "וואטסאפ" },
+  { value: "meeting", label: "פגישה" },
+  { value: "email", label: "מייל" },
+  { value: "proposal", label: "הצעת מחיר" },
+  { value: "follow_up", label: "מעקב" },
+  { value: "internal_note", label: "הערה פנימית" },
+  { value: "other", label: "אחר" },
+]);
+
+export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired";
+export const proposalStatus = options<ProposalStatus>([
+  { value: "draft", label: "טיוטה", tone: "neutral" },
+  { value: "sent", label: "נשלחה", tone: "info" },
+  { value: "viewed", label: "נצפתה", tone: "warn" },
+  { value: "accepted", label: "אושרה", tone: "ok" },
+  { value: "rejected", label: "נדחתה", tone: "danger" },
+  { value: "expired", label: "פג תוקף", tone: "neutral" },
 ]);

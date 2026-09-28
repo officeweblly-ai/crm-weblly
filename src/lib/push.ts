@@ -12,8 +12,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * when set; otherwise generated once and kept in public.app_private, which only
  * the service role can read — so it works with zero manual setup.
  */
-export const NOTIFY_EVENTS = ["task_assigned", "questionnaire_submitted", "approval_response", "daily_digest"] as const;
+export const NOTIFY_EVENTS = [
+  "daily_digest",
+  "task_assigned",
+  "questionnaire_submitted",
+  "approval_response",
+  "proposal_response",
+  "contract_signed",
+  "payment_added",
+] as const;
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
+
+/**
+ * Parts of the morning summary each person can switch off. Missing key = on.
+ * (The summary itself is "daily_digest".)
+ */
+export const DIGEST_PARTS = ["digest_overdue", "digest_follow_ups", "digest_deadlines", "digest_inactive_clients"] as const;
+export type DigestPart = (typeof DIGEST_PARTS)[number];
+export const PREF_KEYS = [...NOTIFY_EVENTS, ...DIGEST_PARTS] as const;
 
 export type PushPayload = { title: string; body: string; url: string; tag?: string };
 
@@ -36,7 +52,20 @@ export async function vapidKeys(): Promise<Keys> {
   return (cached = JSON.parse(stored!.value) as Keys);
 }
 
-function wants(prefs: unknown, event: NotifyEvent): boolean {
+/**
+ * Who should hear about something: the person who owns that work area in
+ * Team → responsibilities (plus any explicit people), or the whole team when
+ * nobody owns it. Never hard-coded names.
+ */
+export async function recipientsFor(category: string, ...explicit: (string | null | undefined)[]): Promise<string[] | "staff"> {
+  const ids = explicit.filter((x): x is string => Boolean(x));
+  const db = createAdminClient();
+  const { data } = await db.rpc("responsible_for", { p_category: category });
+  if (data) ids.push(data as string);
+  return ids.length ? [...new Set(ids)] : "staff";
+}
+
+export function wants(prefs: unknown, event: NotifyEvent | DigestPart): boolean {
   const p = prefs && typeof prefs === "object" ? (prefs as Record<string, unknown>) : {};
   return p[event] !== false;
 }
@@ -87,10 +116,10 @@ export async function sendPush(to: string[] | "staff", event: NotifyEvent | "tes
 }
 
 /** Fire-and-forget: runs after the response; never throws into the caller. */
-export function notify(to: string[] | "staff", event: NotifyEvent, payload: PushPayload) {
+export function notify(to: string[] | "staff" | (() => Promise<string[] | "staff">), event: NotifyEvent, payload: PushPayload) {
   after(async () => {
     try {
-      await sendPush(to, event, payload);
+      await sendPush(typeof to === "function" ? await to() : to, event, payload);
     } catch (e) {
       console.error("[push] notify failed", (e as Error).message);
     }

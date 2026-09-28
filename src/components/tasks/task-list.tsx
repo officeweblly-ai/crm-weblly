@@ -228,8 +228,11 @@ function TaskItem({ task, showContext }: { task: TaskRow; showContext: boolean }
                   {initialsOf(task.assignee.full_name || task.assignee.email)}
                 </span>
                 {(task.assignee.full_name || task.assignee.email).split(" ")[0]}
+                {task.secondary && <span className="text-ink-3">+ {(task.secondary.full_name || task.secondary.email).split(" ")[0]}</span>}
               </span>
             )}
+            {!task.assignee && task.secondary && <span>{(task.secondary.full_name || task.secondary.email).split(" ")[0]} (משני)</span>}
+            {!task.assignee && !task.secondary && !done && <span className="text-warn">ללא אחראי</span>}
             {task.checklist.length > 0 && (
               <span className={cn("inline-flex items-center gap-1 num", checklistDone === task.checklist.length && "text-ok")}>
                 <ListTodo className="size-3.5" aria-hidden />

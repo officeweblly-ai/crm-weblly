@@ -3,7 +3,9 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BriefcaseBusiness, Clapperboard, ListChecks, Wrench } from "lucide-react";
+import Link from "next/link";
+import { BriefcaseBusiness, CalendarPlus, Clapperboard, ListChecks, Wallet, Wrench } from "lucide-react";
+import { FollowUpModal } from "@/components/relationship/relationship-forms";
 import { Button } from "@/components/ui/button";
 import { ChecklistButton } from "@/components/tasks/checklist-button";
 import { addProjectToPortfolio } from "@/lib/actions/portfolio";
@@ -21,6 +23,10 @@ export function ProjectFollowUps({
   portfolioId,
   albumId,
   clientInMaintenance,
+  clientId,
+  staff,
+  balance,
+  hasFutureFollowUp,
 }: {
   projectId: string;
   existingTaskTitles: string[];
@@ -29,6 +35,10 @@ export function ProjectFollowUps({
   portfolioId: string | null;
   albumId: string | null;
   clientInMaintenance: boolean;
+  clientId: string;
+  staff: { value: string; label: string }[];
+  balance: number;
+  hasFutureFollowUp: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -43,7 +53,7 @@ export function ProjectFollowUps({
       else router.refresh();
     });
 
-  const showCompleted = completed && (!portfolioId || !albumId || !clientInMaintenance);
+  const showCompleted = completed && (!portfolioId || !albumId || !clientInMaintenance || !hasFutureFollowUp || balance > 0);
   if (!offerDevChecklist && !showCompleted) return null;
 
   return (
@@ -88,6 +98,28 @@ export function ProjectFollowUps({
               <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => moveClientToMaintenance(projectId))}>
                 <Wrench aria-hidden />
                 העברת הלקוח לתחזוקה
+              </Button>
+            )}
+            {!hasFutureFollowUp && (
+              <FollowUpModal
+                clientId={clientId}
+                staff={staff}
+                defaultReason="לבדוק איך האתר עובד ואם צריך משהו נוסף"
+                defaultDays={30}
+                trigger={
+                  <Button size="sm" variant="secondary">
+                    <CalendarPlus aria-hidden />
+                    מעקב עם הלקוח בעוד חודש
+                  </Button>
+                }
+              />
+            )}
+            {balance > 0 && (
+              <Button asChild size="sm" variant="secondary">
+                <Link href="#payments">
+                  <Wallet aria-hidden />
+                  בדיקת יתרת התשלום
+                </Link>
               </Button>
             )}
           </div>
