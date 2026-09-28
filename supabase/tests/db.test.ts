@@ -324,6 +324,102 @@ async function main() {
     assert.ok(c.signed_at);
   });
 
+  // -------------------------------------------------------------------------
+  // V2
+  // -------------------------------------------------------------------------
+  await test("v2: questionnaire received sets the next action when empty", async () => {
+    await as("authenticated", OWNER);
+    const p = await one<{ next_action: string }>(`select next_action from projects where id = $1`, [projectId]);
+    assert.equal(p.next_action, "לעבור על האפיון");
+  });
+
+  await test("v2 tasks: new statuses, dates, blocking, checklist, history", async () => {
+    await as("authenticated", OWNER);
+    const a = await one<{ id: string }>(`insert into tasks (title, project_id, status, start_date, due_date, assigned_to) values ('עיצוב Hero', $1, 'in_progress', '2026-10-01', '2026-10-05', $2) returning id`, [projectId, OWNER]);
+    const b = await one<{ id: string }>(`insert into tasks (title, project_id, blocked_by_task_id, status) values ('פיתוח Hero', $1, $2, 'blocked') returning id`, [projectId, a.id]);
+    await rejects(`update tasks set blocked_by_task_id = id where id = $1`, [b.id], /not_self_blocked/);
+    await rejects(`insert into tasks (title, start_date, due_date) values ('x', '2026-10-05', '2026-10-01')`, [], /dates_order/);
+    await db.query(`update tasks set status = 'waiting_client' where id = $1`, [a.id]);
+    const log = await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'task.status_changed' and entity_id = $1`, [a.id]);
+    assert.equal(log.n, 1);
+    await db.query(`insert into task_checklist_items (task_id, title) values ($1, 'כותרת'), ($1, 'כפתור')`, [a.id]);
+    await db.query(`update task_checklist_items set is_done = true where task_id = $1 and title = 'כותרת'`, [a.id]);
+    const c = await one<{ done: number; total: number }>(`select count(*) filter (where is_done)::int done, count(*)::int total from task_checklist_items where task_id = $1`, [a.id]);
+    assert.deepEqual(c, { done: 1, total: 2 });
+    // Deleting the blocking task frees the blocked one.
+    await db.query(`delete from tasks where id = $1`, [a.id]);
+    const freed = await one<{ blocked_by_task_id: string | null }>(`select blocked_by_task_id from tasks where id = $1`, [b.id]);
+    assert.equal(freed.blocked_by_task_id, null);
+    await db.query(`delete from tasks where id = $1`, [b.id]);
+  });
+
+  await test("v2 links + references are staff-only", async () => {
+    await as("authenticated", OWNER);
+    await db.query(`insert into project_links (project_id, kind, url, client_visible) values ($1, 'staging', 'https://staging.dana.co.il', true)`, [projectId]);
+    await db.query(`insert into project_references (project_id, title, url, category, note) values ($1, 'Stripe', 'https://stripe.com', 'hero', 'האנימציה בכותרת')`, [projectId]);
+    await rejects(`insert into project_references (project_id, title, url, category) values ($1, 'x', 'https://x.com', 'nope')`, [projectId], /check constraint/);
+    await as("anon");
+    await rejects(`select * from project_links`, [], /permission denied/);
+    await rejects(`select * from project_references`, [], /permission denied/);
+  });
+
+  let approvalId = "";
+  await test("v2 approvals: client answers only through the project token", async () => {
+    await as("authenticated", OWNER);
+    const token = "t".repeat(43);
+    await db.query(`update projects set portal_token = $2, portal_enabled_at = now() where id = $1`, [projectId, token]);
+    const created = await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'project.portal_created'`);
+    assert.equal(created.n, 1);
+    approvalId = (await one<{ id: string }>(`insert into project_approvals (project_id, title, kind) values ($1, 'עיצוב דסקטופ', 'design_desktop') returning id`, [projectId])).id;
+    // Staff cannot fake a client answer, and nobody but the server may call the function.
+    await rejects(`insert into approval_feedback (approval_id, decision) values ($1, 'approved')`, [approvalId], /permission denied/);
+    await rejects(`select respond_to_approval($1, $2, 'approved')`, [token, approvalId], /permission denied/);
+
+    await as("service_role");
+    await rejects(`select respond_to_approval($1, $2, 'approved')`, ["x".repeat(43), approvalId], /Invalid link/);
+    await rejects(`select respond_to_approval($1, $2, 'changes_requested', '  ')`, [token, approvalId], /comment is required/);
+    const r = await one<{ respond_to_approval: { status: string; task_id: string } }>(
+      `select respond_to_approval($1, $2, 'changes_requested', 'להגדיל את הלוגו', 'דנה')`, [token, approvalId],
+    );
+    assert.equal(r.respond_to_approval.status, "changes_requested");
+    const t = await one<{ title: string; priority: string; project_id: string }>(`select title, priority, project_id from tasks where id = $1`, [r.respond_to_approval.task_id]);
+    assert.match(t.title, /עיצוב דסקטופ/);
+    assert.equal(t.project_id, projectId);
+    await rejects(`select respond_to_approval($1, $2, 'approved')`, [token, approvalId], /already answered/);
+    const log = await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'approval.changes_requested'`);
+    assert.equal(log.n, 1);
+
+    await as("authenticated", OWNER);
+    const second = (await one<{ id: string }>(`insert into project_approvals (project_id, title, kind, create_task_on_changes) values ($1, 'גרסה 2', 'design_desktop', false) returning id`, [projectId])).id;
+    await as("service_role");
+    const ok = await one<{ respond_to_approval: { status: string; task_id: string | null } }>(`select respond_to_approval($1, $2, 'approved')`, [token, second]);
+    assert.equal(ok.respond_to_approval.status, "approved");
+    assert.equal(ok.respond_to_approval.task_id, null);
+
+    await as("authenticated", OWNER);
+    await db.query(`update projects set portal_token = null where id = $1`, [projectId]);
+    await as("service_role");
+    await rejects(`select respond_to_approval($1, $2, 'approved')`, [token, second], /Invalid link/);
+    await as("anon");
+    await rejects(`select * from project_approvals`, [], /permission denied/);
+  });
+
+  await test("v2 AI handoff + portfolio", async () => {
+    await as("authenticated", OWNER);
+    const h = await one<{ id: string }>(`insert into project_ai_handoffs (project_id, mega_prompt) values ($1, 'prompt') returning id`, [projectId]);
+    await db.query(`insert into project_ai_handoff_files (handoff_id, name, content, position) values ($1, 'PROJECT_CONTEXT.md', '# x', 0)`, [h.id]);
+    await rejects(`insert into project_ai_handoff_files (handoff_id, name, content) values ($1, '../evil', 'x')`, [h.id], /check constraint/);
+    const item = await one<{ id: string; published_at: string | null }>(`insert into portfolio_items (project_id, client_id, title, status) values ($1, $2, 'סטודיו דנה', 'published') returning id, published_at`, [projectId, clientId]);
+    assert.ok(item.published_at);
+    await rejects(`insert into portfolio_items (project_id, title) values ($1, 'כפול')`, [projectId], /duplicate key/);
+    const f = await one<{ id: string }>(`insert into files (storage_path, original_name, mime_type, size_bytes, project_id) values ('clients/x/cover.png', 'cover.png', 'image/png', 1, $1) returning id`, [projectId]);
+    await db.query(`insert into portfolio_media (item_id, file_id, kind) values ($1, $2, 'cover')`, [item.id, f.id]);
+    const f2 = await one<{ id: string }>(`insert into files (storage_path, original_name, mime_type, size_bytes, project_id) values ('clients/x/cover2.png', 'cover2.png', 'image/png', 1, $1) returning id`, [projectId]);
+    await rejects(`insert into portfolio_media (item_id, file_id, kind) values ($1, $2, 'cover')`, [item.id, f2.id], /duplicate key/);
+    const draft = await one<{ published_at: string | null }>(`update portfolio_items set status = 'draft' where id = $1 returning published_at`, [item.id]);
+    assert.equal(draft.published_at, null);
+  });
+
   await test("deleting a client cascades cleanly (no FK errors from activity triggers)", async () => {
     await as("authenticated", OWNER);
     await db.query(`delete from clients where id = $1`, [clientId]);

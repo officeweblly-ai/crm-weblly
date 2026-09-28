@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { clientStatus, projectStatus, projectType, type ClientStatus, type ProjectStatus, type ProjectType } from "@/lib/domain/labels";
+import { clientStatus, projectStatus, projectType, taskPriority, type ClientStatus, type ProjectStatus, type ProjectType } from "@/lib/domain/labels";
 import { pageRange, PAGE_SIZE, searchPattern } from "@/lib/utils";
 import { isoDateOffset, todayISO } from "@/lib/format";
 import type { Tables, Views } from "@/lib/supabase/database.types";
@@ -187,18 +187,42 @@ export async function listPayments(scope: Scope & { limit?: number }) {
   return data;
 }
 
-export type TaskRow = Tables<"tasks"> & { projects: { id: string; name: string } | null; clients: { id: string; name: string } | null };
+export type TaskRow = Tables<"tasks"> & {
+  projects: { id: string; name: string } | null;
+  clients: { id: string; name: string } | null;
+  assignee: { id: string; full_name: string; email: string } | null;
+  checklist: { id: string; title: string; is_done: boolean; position: number }[];
+  task_files: { id: string; original_name: string; mime_type: string }[];
+  blocker: { id: string; title: string; status: Tables<"tasks">["status"] } | null;
+};
 
-export async function listTasks(scope: Scope & { status?: "open" | "done" | "all"; due?: "overdue" | "week"; limit?: number; q?: string }) {
+const TASK_SELECT =
+  "*, projects(id, name), clients(id, name), assignee:profiles!tasks_assigned_to_fkey(id, full_name, email), checklist:task_checklist_items(id, title, is_done, position), task_files:files(id, original_name, mime_type)";
+
+export type TaskFilter = Scope & {
+  /** open = everything not done. A specific status narrows further. */
+  status?: "open" | "done" | "all" | Tables<"tasks">["status"];
+  due?: "overdue" | "week" | "today";
+  assignee?: string;
+  priority?: string;
+  limit?: number;
+  q?: string;
+};
+
+export async function listTasks(scope: TaskFilter) {
   const supabase = await createClient();
-  let q = supabase.from("tasks").select("*, projects(id, name), clients(id, name)");
+  let q = supabase.from("tasks").select(TASK_SELECT);
   if (scope.projectId) q = q.eq("project_id", scope.projectId);
   if (scope.clientId) q = q.eq("client_id", scope.clientId);
   if (scope.status === "open" || !scope.status) q = q.neq("status", "done");
-  if (scope.status === "done") q = q.eq("status", "done");
+  else if (scope.status !== "all") q = q.eq("status", scope.status);
+  if (scope.assignee === "none") q = q.is("assigned_to", null);
+  else if (scope.assignee) q = q.eq("assigned_to", scope.assignee);
+  if (scope.priority && (taskPriority.values as string[]).includes(scope.priority)) q = q.eq("priority", scope.priority as Tables<"tasks">["priority"]);
   if (scope.q) q = q.ilike("title", searchPattern(scope.q));
   const today = todayISO();
   if (scope.due === "overdue") q = q.lt("due_date", today);
+  if (scope.due === "today") q = q.lte("due_date", today);
   if (scope.due === "week") q = q.gte("due_date", today).lte("due_date", isoDateOffset(7));
   q =
     scope.status === "done"
@@ -206,7 +230,25 @@ export async function listTasks(scope: Scope & { status?: "open" | "done" | "all
       : q.order("due_date", { ascending: true, nullsFirst: false }).order("position");
   const { data, error } = await q.limit(scope.limit ?? 300);
   if (error) throw new Error(error.message);
-  return data as TaskRow[];
+  const rows = data as unknown as Omit<TaskRow, "blocker">[];
+
+  // Blocking tasks may live outside this page of results — fetch their titles once.
+  const blockerIds = [...new Set(rows.map((t) => t.blocked_by_task_id).filter((id): id is string => Boolean(id)))];
+  const { data: blockers } = blockerIds.length ? await supabase.from("tasks").select("id, title, status").in("id", blockerIds) : { data: [] };
+  const byId = new Map((blockers ?? []).map((b) => [b.id, b]));
+  return rows.map((t) => ({
+    ...t,
+    checklist: [...(t.checklist ?? [])].sort((a, b) => a.position - b.position),
+    task_files: t.task_files ?? [],
+    blocker: t.blocked_by_task_id ? (byId.get(t.blocked_by_task_id) ?? null) : null,
+  })) as TaskRow[];
+}
+
+/** Active staff, for assignee pickers and filters. */
+export async function staffOptions() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("id, full_name, email").eq("is_active", true).order("full_name");
+  return (data ?? []).map((p) => ({ value: p.id, label: p.full_name || p.email }));
 }
 
 export type FileRow = Tables<"files"> & { projects: { id: string; name: string } | null; clients: { id: string; name: string } | null };
@@ -441,4 +483,83 @@ export async function initialContract(clientId: string, projectId: string | null
     title: `הסכם לבניית ${typeLabel}${client.business_name ? ` — ${client.business_name}` : ` — ${client.name}`}`,
     content: { ...base, scope: defaultScope(typeLabel), clauses: defaultClauses(base), date: todayISO() },
   };
+}
+
+// ===========================================================================
+// V2 — everything that lives inside a project page
+// ===========================================================================
+export async function getProjectHub(projectId: string) {
+  const supabase = await createClient();
+  const [links, references, approvals, handoff, portfolio, album, sharedNotes] = await Promise.all([
+    supabase.from("project_links").select("*").eq("project_id", projectId).order("position"),
+    supabase.from("project_references").select("*").eq("project_id", projectId).order("position"),
+    supabase
+      .from("project_approvals")
+      .select("*, approval_feedback(decision, comment, author_name, created_at)")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("project_ai_handoffs")
+      .select("id, mega_prompt, created_at, project_ai_handoff_files(name, content, position)")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase.from("portfolio_items").select("id").eq("project_id", projectId).maybeSingle(),
+    supabase.from("social_albums").select("id").eq("project_id", projectId).limit(1).maybeSingle(),
+    supabase.from("notes").select("id", { count: "exact", head: true }).eq("project_id", projectId).eq("share_with_ai", true),
+  ]);
+  const h = handoff.data;
+  return {
+    links: links.data ?? [],
+    references: references.data ?? [],
+    approvals: approvals.data ?? [],
+    latestHandoff: h
+      ? {
+          files: [...h.project_ai_handoff_files].sort((a, b) => a.position - b.position).map(({ name, content }) => ({ name, content })),
+          megaPrompt: h.mega_prompt,
+          createdAt: h.created_at,
+        }
+      : null,
+    portfolioId: portfolio.data?.id ?? null,
+    albumId: album.data?.id ?? null,
+    sharedNotes: sharedNotes.count ?? 0,
+  };
+}
+
+// ===========================================================================
+// Portfolio
+// ===========================================================================
+export async function listPortfolio() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("portfolio_items")
+    .select("*, projects(id, name), portfolio_media(file_id, kind)")
+    .order("position")
+    .limit(300);
+  if (error) throw new Error(error.message);
+  const coverIds = data.map((i) => i.portfolio_media.find((m) => m.kind === "cover")?.file_id ?? i.portfolio_media[0]?.file_id).filter((x): x is string => Boolean(x));
+  const { data: files } = coverIds.length ? await supabase.from("files").select("id, storage_path, mime_type, bucket").in("id", coverIds) : { data: [] };
+  const signed = await withThumbs(files ?? []);
+  const urlOf = new Map(signed.map((f) => [f.id, f.thumbUrl]));
+  return data.map(({ portfolio_media, ...i }) => {
+    const cover = portfolio_media.find((m) => m.kind === "cover")?.file_id ?? portfolio_media[0]?.file_id;
+    return { ...i, mediaCount: portfolio_media.length, coverUrl: cover ? (urlOf.get(cover) ?? null) : null };
+  });
+}
+
+export async function getPortfolioItem(id: string) {
+  const supabase = await createClient();
+  const { data: item, error } = await supabase.from("portfolio_items").select("*, projects(id, name, client_id)").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!item) return null;
+  const [{ data: media }, { data: images }] = await Promise.all([
+    supabase.from("portfolio_media").select("file_id, kind, position").eq("item_id", id),
+    item.project_id
+      ? supabase.from("files").select("*").eq("project_id", item.project_id).like("mime_type", "image/%").is("album_id", null).order("created_at", { ascending: false }).limit(120)
+      : Promise.resolve({ data: [] as Tables<"files">[] }),
+  ]);
+  const kindOf = new Map((media ?? []).map((m) => [m.file_id, m.kind]));
+  const withUrls = await withThumbs(images ?? []);
+  return { item, images: withUrls.map((f) => ({ ...f, portfolioKind: kindOf.get(f.id) ?? null })) };
 }

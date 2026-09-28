@@ -7,6 +7,10 @@ import {
   leadStatus,
   paymentKind,
   paymentMethod,
+  approvalKind,
+  portfolioStatus,
+  projectLinkKind,
+  referenceCategory,
   projectStatus,
   projectType,
   taskPriority,
@@ -119,6 +123,7 @@ export const projectSchema = z
     deadline: optDate,
     next_action: optText(300),
     notes: optText(5000),
+    tech_stack: optText(500),
   })
   .superRefine((v, ctx) => {
     if (v.total_price > 0 && v.deposit_amount > v.total_price) {
@@ -149,15 +154,48 @@ export type PaymentInput = z.infer<typeof paymentSchema>;
 // ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
-export const taskSchema = z.object({
-  title: required("כותרת", 300),
-  description: optText(5000),
-  project_id: optUuid,
-  client_id: optUuid,
-  due_date: optDate,
-  priority: z.enum(taskPriority.values).default("medium"),
-  status: z.enum(taskStatus.values).default("todo"),
-});
+/** "label | url" or just "url", one per line → [{label, url}]. */
+export function parseLinkLines(text: string | undefined): { label: string; url: string }[] {
+  return (text ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 20)
+    .map((line) => {
+      const i = line.lastIndexOf("|");
+      const url = (i >= 0 ? line.slice(i + 1) : line).trim().slice(0, 500);
+      const label = (i >= 0 ? line.slice(0, i) : "").trim().slice(0, 120);
+      return { label, url };
+    });
+}
+
+const linkLines = z
+  .string()
+  .max(10000)
+  .optional()
+  .transform((v) => parseLinkLines(v))
+  .refine((links) => links.every((l) => /^(https?:\/\/)?[^\s.]+\.[^\s]{2,}$/i.test(l.url)), "יש קישור לא תקין — שורה לכל קישור, לדוגמה: עיצוב | https://figma.com/…");
+
+export const taskSchema = z
+  .object({
+    title: required("כותרת", 300),
+    description: optText(5000),
+    project_id: optUuid,
+    client_id: optUuid,
+    start_date: optDate,
+    due_date: optDate,
+    priority: z.enum(taskPriority.values).default("medium"),
+    status: z.enum(taskStatus.values).default("todo"),
+    assigned_to: optUuid,
+    blocked_by_task_id: optUuid,
+    internal_notes: optText(5000),
+    links: linkLines,
+  })
+  .superRefine((v, ctx) => {
+    if (v.start_date && v.due_date && v.due_date < v.start_date) {
+      ctx.addIssue({ code: "custom", path: ["due_date"], message: "תאריך היעד לפני תאריך ההתחלה" });
+    }
+  });
 export type TaskInput = z.infer<typeof taskSchema>;
 
 // ---------------------------------------------------------------------------
@@ -196,6 +234,7 @@ export const uploadRequestSchema = z.object({
   project_id: optUuid,
   album_id: optUuid,
   album_section: z.enum(["process", "before_after", "final", "behind_scenes", "other"]).optional().transform((v) => v ?? null),
+  task_id: optUuid,
 });
 
 export const albumSchema = z.object({
@@ -240,3 +279,74 @@ export const settingsSchema = z.object({
 });
 
 export const profileSchema = z.object({ full_name: required("שם", 120) });
+
+// ---------------------------------------------------------------------------
+// V2 — project links, references, approvals, client presentation, portfolio
+// ---------------------------------------------------------------------------
+const reqUrl = z
+  .string({ error: "יש להזין כתובת" })
+  .trim()
+  .min(1, "יש להזין כתובת")
+  .max(1000)
+  .refine((v) => /^(https?:\/\/)?[^\s.]+\.[^\s]{2,}$/i.test(v), "כתובת לא תקינה — לדוגמה: example.co.il")
+  .transform((v) => (/^https?:\/\//i.test(v) ? v : `https://${v}`));
+
+export const projectLinkSchema = z.object({
+  project_id: uuid,
+  kind: z.enum(projectLinkKind.values).default("custom"),
+  label: optText(120),
+  url: reqUrl,
+  note: optText(1000),
+  client_visible: z.enum(["on"]).optional().transform((v) => v === "on"),
+});
+
+export const referenceSchema = z.object({
+  project_id: uuid,
+  title: required("שם הרפרנס", 200),
+  url: reqUrl,
+  category: z.enum(referenceCategory.values).default("general"),
+  note: optText(2000),
+});
+
+export const approvalSchema = z.object({
+  project_id: uuid,
+  title: required("כותרת", 200),
+  kind: z.enum(approvalKind.values).default("other"),
+  description: optText(3000),
+  preview_url: reqUrl.optional().transform((v) => v ?? null),
+  file_ids: z.array(uuid).max(20).optional().transform((v) => v ?? []),
+  create_task_on_changes: z.enum(["on"]).optional().transform((v) => v === "on"),
+});
+
+export const clientPresentationSchema = z.object({
+  client_update: optText(2000),
+  client_action: optText(1000),
+});
+
+export const portfolioSchema = z.object({
+  title: required("שם הפרויקט", 200),
+  category: optText(120),
+  summary: optText(1000),
+  work_done: optText(3000),
+  technologies: z
+    .string()
+    .max(1000)
+    .optional()
+    .transform((v) => (v ?? "").split(/[,\n]/).map((t) => t.trim()).filter(Boolean).slice(0, 30)),
+  site_url: reqUrl.optional().transform((v) => v ?? null),
+  status: z.enum(portfolioStatus.values).default("draft"),
+});
+
+/** The client's answer from the presentation page. */
+export const approvalResponseSchema = z
+  .object({
+    approval_id: uuid,
+    decision: z.enum(["approved", "changes_requested"]),
+    comment: optText(5000),
+    author: optText(120),
+  })
+  .superRefine((v, ctx) => {
+    if (v.decision === "changes_requested" && !v.comment) {
+      ctx.addIssue({ code: "custom", path: ["comment"], message: "כתבו בקצרה מה תרצו לשנות" });
+    }
+  });

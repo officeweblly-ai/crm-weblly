@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Field, FormGrid, Input, LtrInput, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { paymentKind, paymentMethod } from "@/lib/domain/labels";
-import { createPayment, updatePayment } from "@/lib/actions/crm";
+import { toast } from "sonner";
+import { createPayment, setProjectStatus, updatePayment } from "@/lib/actions/crm";
 import { formatMoney, todayISO } from "@/lib/format";
 import { useFormAction } from "@/lib/use-form-action";
 import type { Tables } from "@/lib/supabase/database.types";
@@ -37,9 +38,26 @@ export function PaymentFormModal({
   const router = useRouter();
   const [open, setOpen] = useOpenState({ open: openProp, onOpenChange, defaultOpen });
   const [amount, setAmount] = useState(payment ? String(payment.amount) : "");
-  const action = payment ? updatePayment.bind(null, payment.id) : createPayment;
+  const action: (fd: FormData) => ReturnType<typeof createPayment> | ReturnType<typeof updatePayment> = payment ? updatePayment.bind(null, payment.id) : createPayment;
   const { pending, errors, onSubmit } = useFormAction(action, {
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Automation: a deposit arrived → offer to move the project to design (one tap, never automatic).
+      const suggest = "suggestDesign" in data ? (data.suggestDesign as { projectId: string; name: string } | null) : null;
+      if (suggest) {
+        toast(`המקדמה נרשמה. להעביר את "${suggest.name}" לשלב עיצוב?`, {
+          duration: 12000,
+          action: {
+            label: "העברה לעיצוב",
+            onClick: async () => {
+              const r = await setProjectStatus({ id: suggest.projectId, status: "design" });
+              if (r.ok) {
+                toast.success("הפרויקט עבר לשלב עיצוב");
+                router.refresh();
+              } else toast.error(r.error);
+            },
+          },
+        });
+      }
       setOpen(false);
       if (!payment) setAmount("");
       if (defaultOpen && closeHref) router.replace(closeHref, { scroll: false });

@@ -6,6 +6,8 @@ import { Dialog } from "radix-ui";
 import { useState, type FormEvent } from "react";
 import {
   Gauge,
+  Sun,
+  BriefcaseBusiness,
   Inbox,
   Users,
   FolderKanban,
@@ -34,6 +36,7 @@ import { signOut } from "@/lib/actions/auth";
 
 export const NAV = [
   { href: "/", label: "דשבורד", icon: Gauge },
+  { href: "/today", label: "היום", icon: Sun },
   { href: "/leads", label: "לידים", icon: Inbox },
   { href: "/clients", label: "לקוחות", icon: Users },
   { href: "/projects", label: "פרויקטים", icon: FolderKanban },
@@ -42,10 +45,12 @@ export const NAV = [
   { href: "/finances", label: "כספים", icon: Wallet },
   { href: "/files", label: "קבצים", icon: Files },
   { href: "/social", label: "סושיאל", icon: Clapperboard },
+  { href: "/portfolio", label: "תיק עבודות", icon: BriefcaseBusiness },
   { href: "/settings", label: "הגדרות", icon: Settings },
 ] as const;
 
-const MOBILE_TABS = [NAV[0], NAV[2], NAV[3], NAV[5]];
+// The mobile bottom bar stays exactly as before; new areas live in "עוד".
+const MOBILE_TABS = ["/", "/clients", "/projects", "/tasks"].map((href) => NAV.find((n) => n.href === href)!);
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);

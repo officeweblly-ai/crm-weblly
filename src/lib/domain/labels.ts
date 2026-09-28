@@ -158,8 +158,10 @@ export const contractStatus = options<ContractStatus>([
 ]);
 
 export const taskStatus = options<TaskStatus>([
-  { value: "todo", label: "לביצוע", tone: "neutral" },
+  { value: "todo", label: "לא התחיל", tone: "neutral" },
   { value: "in_progress", label: "בעבודה", tone: "accent" },
+  { value: "waiting_client", label: "ממתין ללקוח", tone: "warn" },
+  { value: "blocked", label: "חסום", tone: "danger" },
   { value: "done", label: "הושלם", tone: "ok" },
 ]);
 
@@ -186,3 +188,84 @@ export const DEFAULT_CHECKLIST: { title: string; priority: TaskPriority }[] = [
   { title: "גביית יתרת תשלום", priority: "high" },
   { title: "עלייה לאוויר", priority: "high" },
 ];
+
+/** Offered (never forced) once the client approved the design. */
+export const DEV_CHECKLIST: { title: string; priority: TaskPriority }[] = [
+  { title: "הקמת ריפו ופרויקט פיתוח", priority: "high" },
+  { title: "פיתוח אזור ה-Hero", priority: "high" },
+  { title: "פיתוח עמודי התוכן", priority: "medium" },
+  { title: "התאמה מלאה למובייל", priority: "high" },
+  { title: "טפסים וחיבורים", priority: "medium" },
+  { title: "אנימציות ומיקרו-אינטראקציות", priority: "low" },
+  { title: "בדיקות דפדפנים ומכשירים", priority: "medium" },
+  { title: "בדיקת מהירות ונגישות", priority: "medium" },
+];
+
+// ---------------------------------------------------------------------------
+// V2 — project links, references, approvals, portfolio
+// ---------------------------------------------------------------------------
+export type ProjectLinkKind =
+  | "github" | "production" | "staging" | "vercel" | "supabase" | "figma" | "claude" | "codex"
+  | "analytics" | "search_console" | "google_ads" | "domain" | "custom";
+export const projectLinkKind = options<ProjectLinkKind>([
+  { value: "github", label: "GitHub Repository" },
+  { value: "production", label: "Production (האתר החי)" },
+  { value: "staging", label: "Staging / Preview" },
+  { value: "vercel", label: "Vercel" },
+  { value: "supabase", label: "Supabase" },
+  { value: "figma", label: "Figma" },
+  { value: "claude", label: "Claude" },
+  { value: "codex", label: "Codex" },
+  { value: "analytics", label: "Analytics" },
+  { value: "search_console", label: "Search Console" },
+  { value: "google_ads", label: "Google Ads" },
+  { value: "domain", label: "דומיין / DNS" },
+  { value: "custom", label: "קישור אחר" },
+]);
+/** Only these can be shown to the client — never admin consoles. */
+export const CLIENT_SAFE_LINK_KINDS: ProjectLinkKind[] = ["production", "staging", "figma", "custom"];
+
+export type ReferenceCategory = "hero" | "animation" | "mobile" | "competitor" | "general" | "other";
+export const referenceCategory = options<ReferenceCategory>([
+  { value: "hero", label: "Hero", tone: "accent" },
+  { value: "animation", label: "אנימציה", tone: "info" },
+  { value: "mobile", label: "מובייל", tone: "info" },
+  { value: "competitor", label: "מתחרה", tone: "warn" },
+  { value: "general", label: "כללי", tone: "neutral" },
+  { value: "other", label: "אחר", tone: "neutral" },
+]);
+
+export type ApprovalKind = "hero" | "design_desktop" | "design_mobile" | "page" | "full_site" | "other";
+export const approvalKind = options<ApprovalKind>([
+  { value: "hero", label: "אזור ה-Hero" },
+  { value: "design_desktop", label: "עיצוב דסקטופ" },
+  { value: "design_mobile", label: "עיצוב מובייל" },
+  { value: "page", label: "עמוד מסוים" },
+  { value: "full_site", label: "האתר המלא" },
+  { value: "other", label: "אחר" },
+]);
+export const DESIGN_APPROVAL_KINDS: ApprovalKind[] = ["hero", "design_desktop", "design_mobile", "full_site"];
+
+export type ApprovalStatus = "pending" | "approved" | "changes_requested" | "cancelled";
+export const approvalStatus = options<ApprovalStatus>([
+  { value: "pending", label: "ממתין ללקוח", tone: "warn" },
+  { value: "approved", label: "אושר", tone: "ok" },
+  { value: "changes_requested", label: "התבקשו שינויים", tone: "danger" },
+  { value: "cancelled", label: "בוטל", tone: "neutral" },
+]);
+
+export type PortfolioStatus = "draft" | "published";
+export const portfolioStatus = options<PortfolioStatus>([
+  { value: "draft", label: "טיוטה", tone: "neutral" },
+  { value: "published", label: "מפורסם", tone: "ok" },
+]);
+
+export type PortfolioMediaKind = "cover" | "desktop" | "mobile" | "before" | "after" | "other";
+export const portfolioMediaKind = options<PortfolioMediaKind>([
+  { value: "cover", label: "תמונת שער" },
+  { value: "desktop", label: "צילום דסקטופ" },
+  { value: "mobile", label: "צילום מובייל" },
+  { value: "before", label: "לפני" },
+  { value: "after", label: "אחרי" },
+  { value: "other", label: "אחר" },
+]);

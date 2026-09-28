@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { DEFAULT_CHECKLIST, taskStatus } from "@/lib/domain/labels";
+import { DEFAULT_CHECKLIST, DEV_CHECKLIST, taskStatus } from "@/lib/domain/labels";
 import { BUCKET } from "@/lib/storage";
 import {
   clientSchema,
@@ -179,15 +179,23 @@ export async function deleteProject(id: string): Promise<ActionResult<{ clientId
 // ===========================================================================
 // Payments
 // ===========================================================================
-export async function createPayment(fd: FormData): Promise<ActionResult<{ id: string }>> {
+/** A deposit on a project that hasn't reached design yet → offer (never force) moving it to design. */
+const BEFORE_DESIGN = ["lead", "questionnaire_sent", "questionnaire_received", "awaiting_deposit"];
+
+export async function createPayment(fd: FormData): Promise<ActionResult<{ id: string; suggestDesign: { projectId: string; name: string } | null }>> {
   const s = await staffClient();
   if (!s) return NOT_AUTHORIZED;
   const p = parseForm(paymentSchema, fd);
   if (!p.success) return p.result;
   const { data, error } = await s.supabase.from("payments").insert(p.data).select("id").single();
   if (error) return dbError(error, "רישום התשלום נכשל");
+  let suggestDesign: { projectId: string; name: string } | null = null;
+  if (p.data.kind === "deposit") {
+    const { data: project } = await s.supabase.from("projects").select("id, name, status").eq("id", p.data.project_id).maybeSingle();
+    if (project && BEFORE_DESIGN.includes(project.status)) suggestDesign = { projectId: project.id, name: project.name };
+  }
   refresh();
-  return ok({ id: data.id }, "התשלום נרשם — היתרה עודכנה");
+  return ok({ id: data.id, suggestDesign }, "התשלום נרשם — היתרה עודכנה");
 }
 
 export async function updatePayment(id: string, fd: FormData): Promise<ActionResult<{ id: string }>> {
@@ -243,7 +251,7 @@ export async function setTaskStatus(id: string, status: string): Promise<ActionR
   const { error } = await s.supabase.from("tasks").update({ status: parsed.data }).eq("id", id);
   if (error) return dbError(error, "עדכון המשימה נכשל");
   refresh();
-  return ok(undefined, parsed.data === "done" ? "המשימה סומנה כהושלמה" : parsed.data === "todo" ? "המשימה נפתחה מחדש" : "המשימה בעבודה");
+  return ok(undefined, parsed.data === "done" ? "המשימה סומנה כהושלמה" : `סטטוס המשימה: ${taskStatus.label(parsed.data)}`);
 }
 
 export async function deleteTask(id: string): Promise<ActionResult> {
@@ -255,11 +263,11 @@ export async function deleteTask(id: string): Promise<ActionResult> {
   return ok(undefined, "המשימה נמחקה");
 }
 
-/** Adds the chosen default checklist items to a project (skips existing titles). */
-export async function addChecklist(projectId: string, titles: string[]): Promise<ActionResult<{ added: number }>> {
+/** Adds the chosen checklist items to a project (skips existing titles). */
+export async function addChecklist(projectId: string, titles: string[], list: "default" | "dev" = "default"): Promise<ActionResult<{ added: number }>> {
   const s = await staffClient();
   if (!s) return NOT_AUTHORIZED;
-  const allowed = new Map(DEFAULT_CHECKLIST.map((c, i) => [c.title, { ...c, i }]));
+  const allowed = new Map((list === "dev" ? DEV_CHECKLIST : DEFAULT_CHECKLIST).map((c, i) => [c.title, { ...c, i }]));
   const chosen = titles.filter((t) => allowed.has(t));
   if (!chosen.length) return fail("לא נבחרו משימות.");
   const { data: existing } = await s.supabase.from("tasks").select("title").eq("project_id", projectId);
@@ -278,6 +286,52 @@ export async function addChecklist(projectId: string, titles: string[]): Promise
   return ok({ added: rows.length }, `נוספו ${rows.length} משימות לפרויקט`);
 }
 
+/** Pickers for the task form: active staff + other open tasks of the same project. */
+export async function taskFormOptions(projectId: string | null, taskId?: string): Promise<ActionResult<{ staff: { value: string; label: string }[]; tasks: { value: string; label: string }[] }>> {
+  const s = await staffClient();
+  if (!s) return NOT_AUTHORIZED;
+  const [{ data: staff }, { data: tasks }] = await Promise.all([
+    s.supabase.from("profiles").select("id, full_name, email").eq("is_active", true).order("full_name"),
+    projectId ? s.supabase.from("tasks").select("id, title").eq("project_id", projectId).neq("status", "done").order("position").limit(200) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+  ]);
+  return ok({
+    staff: (staff ?? []).map((p) => ({ value: p.id, label: p.full_name || p.email })),
+    tasks: (tasks ?? []).filter((t) => t.id !== taskId).map((t) => ({ value: t.id, label: t.title })),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Sub-tasks (checklist inside a task)
+// ---------------------------------------------------------------------------
+export async function addChecklistItem(taskId: string, title: string): Promise<ActionResult<{ id: string }>> {
+  const s = await staffClient();
+  if (!s) return NOT_AUTHORIZED;
+  const clean = title.trim().slice(0, 300);
+  if (!clean) return fail("יש להזין תת-משימה.");
+  const { data, error } = await s.supabase.from("task_checklist_items").insert({ task_id: taskId, title: clean }).select("id").single();
+  if (error) return dbError(error, "הוספת תת-המשימה נכשלה");
+  refresh();
+  return ok({ id: data.id });
+}
+
+export async function toggleChecklistItem(id: string, isDone: boolean): Promise<ActionResult> {
+  const s = await staffClient();
+  if (!s) return NOT_AUTHORIZED;
+  const { error } = await s.supabase.from("task_checklist_items").update({ is_done: isDone }).eq("id", id);
+  if (error) return dbError(error, "העדכון נכשל");
+  refresh();
+  return ok(undefined);
+}
+
+export async function deleteChecklistItem(id: string): Promise<ActionResult> {
+  const s = await staffClient();
+  if (!s) return NOT_AUTHORIZED;
+  const { error } = await s.supabase.from("task_checklist_items").delete().eq("id", id);
+  if (error) return dbError(error, "המחיקה נכשלה");
+  refresh();
+  return ok(undefined);
+}
+
 // ===========================================================================
 // Notes
 // ===========================================================================
@@ -292,10 +346,11 @@ export async function createNote(fd: FormData): Promise<ActionResult<{ id: strin
   return ok({ id: data.id }, "ההערה נשמרה");
 }
 
-export async function updateNote(id: string, input: { body?: string; is_pinned?: boolean }): Promise<ActionResult> {
+export async function updateNote(id: string, input: { body?: string; is_pinned?: boolean; share_with_ai?: boolean }): Promise<ActionResult> {
   const s = await staffClient();
   if (!s) return NOT_AUTHORIZED;
-  const patch: { body?: string; is_pinned?: boolean } = {};
+  const patch: { body?: string; is_pinned?: boolean; share_with_ai?: boolean } = {};
+  if (input.share_with_ai !== undefined) patch.share_with_ai = input.share_with_ai;
   if (input.body !== undefined) {
     const body = input.body.trim();
     if (!body) return fail("ההערה ריקה.");
@@ -305,6 +360,7 @@ export async function updateNote(id: string, input: { body?: string; is_pinned?:
   const { error } = await s.supabase.from("notes").update(patch).eq("id", id);
   if (error) return dbError(error, "עדכון ההערה נכשל");
   refresh();
+  if (input.share_with_ai !== undefined) return ok(undefined, input.share_with_ai ? "ההערה תיכלל בחבילת הפיתוח ל-AI" : "ההערה לא תיכלל בחבילת ה-AI");
   return ok(undefined, input.is_pinned === undefined ? "ההערה עודכנה" : input.is_pinned ? "ההערה הוצמדה" : "ההצמדה בוטלה");
 }
 

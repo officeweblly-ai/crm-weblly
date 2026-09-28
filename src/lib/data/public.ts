@@ -57,3 +57,96 @@ export async function getPublicForm(token: string): Promise<PublicForm> {
     lastSavedAt: s.last_saved_at,
   };
 }
+
+// ===========================================================================
+// Client presentation (/p/<token>)
+// ===========================================================================
+export type PortalFile = { id: string; name: string; mime: string; url: string | null };
+export type PortalApproval = {
+  id: string;
+  title: string;
+  kind: string;
+  description: string | null;
+  preview_url: string | null;
+  status: string;
+  responded_at: string | null;
+  created_at: string;
+  files: PortalFile[];
+  feedback: { decision: string; comment: string | null; author_name: string | null; created_at: string }[];
+};
+export type PublicProject =
+  | { state: "invalid" }
+  | {
+      state: "open";
+      businessName: string;
+      contactPhone: string | null;
+      contactEmail: string | null;
+      project: { name: string; status: string; client_update: string | null; client_action: string | null; updated_at: string };
+      approvals: PortalApproval[];
+      files: PortalFile[];
+      links: { kind: string; label: string | null; url: string }[];
+    };
+
+const PORTAL_URL_TTL = 3600;
+const SAFE_LINK_KINDS = ["production", "staging", "figma", "custom"];
+
+/**
+ * Loads ONLY what the client may see. Internal notes, tasks, money, contracts
+ * and unshared files are never selected — the query itself is the allowlist.
+ */
+export async function getPublicProject(token: string): Promise<PublicProject> {
+  if (!TOKEN_RE.test(token)) return { state: "invalid" };
+  const db = createAdminClient();
+  const { data: p } = await db
+    .from("projects")
+    .select("id, name, status, client_update, client_action, updated_at")
+    .eq("portal_token", token)
+    .maybeSingle();
+  if (!p) return { state: "invalid" };
+
+  const [{ data: ws }, { data: approvals }, { data: shared }, { data: links }] = await Promise.all([
+    db.from("workspace_settings").select("business_name, contact_phone, contact_email").maybeSingle(),
+    db
+      .from("project_approvals")
+      .select("id, title, kind, description, preview_url, status, responded_at, created_at, file_ids, approval_feedback(decision, comment, author_name, created_at)")
+      .eq("project_id", p.id)
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: false })
+      .limit(30),
+    db.from("files").select("id, original_name, mime_type, storage_path, bucket").eq("project_id", p.id).eq("is_shared", true).order("created_at", { ascending: false }).limit(60),
+    db.from("project_links").select("kind, label, url").eq("project_id", p.id).eq("client_visible", true).in("kind", SAFE_LINK_KINDS).order("position"),
+  ]);
+
+  // Approval files: only ids that really belong to this project.
+  const approvalFileIds = [...new Set((approvals ?? []).flatMap((a) => a.file_ids))];
+  const { data: approvalFiles } = approvalFileIds.length
+    ? await db.from("files").select("id, original_name, mime_type, storage_path, bucket").eq("project_id", p.id).in("id", approvalFileIds)
+    : { data: [] };
+
+  const all = [...(shared ?? []), ...(approvalFiles ?? [])];
+  const paths = [...new Set(all.map((f) => f.storage_path))];
+  const { data: signed } = paths.length ? await db.storage.from(all[0].bucket).createSignedUrls(paths, PORTAL_URL_TTL) : { data: [] };
+  const urlOf = new Map((signed ?? []).flatMap((s) => (s.signedUrl && s.path ? [[s.path, s.signedUrl] as [string, string]] : [])));
+  const toFile = (f: { id: string; original_name: string; mime_type: string; storage_path: string }): PortalFile => ({
+    id: f.id,
+    name: f.original_name,
+    mime: f.mime_type,
+    url: urlOf.get(f.storage_path) ?? null,
+  });
+  const fileById = new Map((approvalFiles ?? []).map((f) => [f.id, toFile(f)]));
+
+  return {
+    state: "open",
+    businessName: ws?.business_name ?? "",
+    contactPhone: ws?.contact_phone ?? null,
+    contactEmail: ws?.contact_email ?? null,
+    project: { name: p.name, status: p.status, client_update: p.client_update, client_action: p.client_action, updated_at: p.updated_at },
+    approvals: (approvals ?? []).map(({ file_ids, approval_feedback, ...a }) => ({
+      ...a,
+      files: file_ids.map((id) => fileById.get(id)).filter((f): f is PortalFile => Boolean(f)),
+      feedback: [...approval_feedback].sort((x, y) => x.created_at.localeCompare(y.created_at)),
+    })),
+    files: (shared ?? []).map(toFile),
+    links: links ?? [],
+  };
+}

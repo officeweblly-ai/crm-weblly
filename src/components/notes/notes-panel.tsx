@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Pin, PinOff, Trash2, Pencil, StickyNote } from "lucide-react";
+import { Bot, Pin, PinOff, Trash2, Pencil, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Confirm } from "@/components/ui/confirm";
 import { Textarea } from "@/components/ui/field";
@@ -17,6 +17,7 @@ type NoteRow = {
   id: string;
   body: string;
   is_pinned: boolean;
+  share_with_ai?: boolean;
   created_at: string;
   updated_at: string;
   projects: { id: string; name: string } | null;
@@ -61,8 +62,21 @@ function NoteItem({ note }: { note: NoteRow }) {
         <div className="text-xs text-ink-3">
           {note.profiles?.full_name || note.profiles?.email || "—"} · {formatDateTime(note.created_at)}
           {note.projects && <> · {note.projects.name}</>}
+          {note.share_with_ai && <span className="font-medium text-accent"> · משותף עם AI</span>}
         </div>
         <div className="flex">
+          {note.projects && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={note.share_with_ai ? "הסרה מחבילת ה-AI" : "שיתוף בחבילת הפיתוח ל-AI"}
+              aria-pressed={Boolean(note.share_with_ai)}
+              title={note.share_with_ai ? "משותף עם AI — לחצו להסרה" : "לשתף בחבילת הפיתוח ל-AI"}
+              onClick={() => run(() => updateNote(note.id, { share_with_ai: !note.share_with_ai }))}
+            >
+              <Bot className={note.share_with_ai ? "text-accent" : undefined} />
+            </Button>
+          )}
           <Button variant="ghost" size="icon-sm" aria-label={note.is_pinned ? "ביטול הצמדה" : "הצמדה"} onClick={() => run(() => updateNote(note.id, { is_pinned: !note.is_pinned }))}>
             {note.is_pinned ? <PinOff /> : <Pin />}
           </Button>

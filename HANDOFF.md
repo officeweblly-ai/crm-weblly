@@ -69,13 +69,44 @@ Patterns to follow:
 - **Social** (`/social`): albums per job with sections (process / before-after / final / behind the scenes), photos + video, status (collecting/editing/published).
 - Settings: business details, profile, password change, team management, delete demo data.
 
+### V2 upgrade (2026-09-28) — additive, from `WEBLLY_V2_Upgrade_Spec.pdf`
+- **Tasks 2.0:** statuses todo/in_progress/**waiting_client/blocked**/done, assignee (`tasks.assigned_to`), start date,
+  blocking task (`blocked_by_task_id`), sub-tasks (`task_checklist_items`), links (`tasks.links` jsonb), internal notes,
+  files attached to a task (`files.task_id`). Tasks page filters: project / assignee / status / priority / due.
+  Task rows expand in place (checklist, links, files, notes). Form options (staff, sibling tasks) load via `taskFormOptions`.
+- **Project page = Control Center:** the top card (`control-center.tsx`) shows stage, next action, active task, what
+  we're waiting on from the client, deadline + task progress, money, and in-page shortcuts (#tasks, #links, …).
+- **Links** (`project_links`, kinds incl. GitHub/Production/Staging/Vercel/Supabase/Figma/Claude/Codex/…) and
+  **References** (`project_references`, category + "what I liked") — inside the project, not in the main nav.
+- **AI Handoff** (`src/lib/ai-handoff.ts`): builds PROJECT_CONTEXT.md, CLIENT_BRIEF.md, BUILD_INSTRUCTIONS.md + Mega
+  Prompt from real project data; saved in `project_ai_handoffs` / `project_ai_handoff_files`; copy + ZIP download
+  (`src/lib/zip.ts`, no dependency). Never includes money/contracts; client contacts, temporary file links and internal
+  notes only when chosen (`notes.share_with_ai`). No fake AI integration.
+- **Client presentation** `/p/<token>` (`projects.portal_token`, same token model as questionnaires; create / regenerate /
+  revoke). Shows only: name, client-friendly stage, `client_update`, `client_action`, files with `files.is_shared`,
+  links with `client_visible` (only production/staging/figma/custom), approvals. Loaded with the service role through an
+  explicit allowlist in `getPublicProject`.
+- **Approvals** (`project_approvals`, `approval_feedback`): the client approves / requests changes via
+  `respond_to_approval()` (service-role only, re-checks the token, logs to the timeline, optionally opens a task).
+- **Portfolio** (`/portfolio`, `portfolio_items` + `portfolio_media`): "add to portfolio" pre-fills from the project;
+  images are chosen from the project files (cover/desktop/mobile/before/after); draft/published; manual order.
+- **Today** (`/today`): tasks due today/overdue, projects waiting on us, items waiting on the client, leads to call back,
+  payments to chase. "Only mine" filter.
+- **Small automations (never silent):** questionnaire received → next action "לעבור על האפיון" (only if empty, in SQL);
+  deposit recorded → toast offering "move to design"; design approved → banner offering the dev checklist
+  (`DEV_CHECKLIST`); project completed → buttons: add to portfolio / open social album / move client to maintenance.
+- Nav: only "היום" and "תיק עבודות" were added. The mobile bottom bar is unchanged.
+
 ## 5. Environment & database
 
 `.env.local` (never commit): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
 `NEXT_PUBLIC_SITE_URL`, `SUPABASE_DB_URL` (direct/pooler connection string, only for scripts).
 
 Migrations are tracked in `internal.app_migrations`. Apply new ones with `npm run db:migrate`.
-Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator.
+Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade.
+**Network note:** the direct host `db.<ref>.supabase.co` is IPv6-only and does not resolve on IPv4-only networks
+(`getaddrinfo ENOTFOUND`). Use the Session pooler instead: user `postgres.<ref>`, host
+`aws-0-ap-northeast-1.pooler.supabase.com`, port 5432 (same password) — e.g. `SUPABASE_DB_URL=… npm run db:migrate`.
 **Enum values added with `alter type … add value` cannot be used in the same migration file.**
 
 Workflow for a DB change: write `supabase/migrations/<timestamp>_name.sql` → add a test in `supabase/tests/db.test.ts`
@@ -87,7 +118,7 @@ Workflow for a DB change: write `supabase/migrations/<timestamp>_name.sql` → a
 npm run lint && npx tsc --noEmit && npm run test:db && npm run test:unit && npx next build
 ```
 
-## 7. State at handoff (2026-09-26)
+## 7. State at handoff (2026-09-28)
 
 - Production DB was wiped clean on 2026-09-27 at the owner's request. It contains ONLY: the 3 questionnaire
   templates ("אתר תדמית — אפיון מלא", "חנות אונליין (E-commerce)", "מערכת / אפליקציית SaaS", each with a

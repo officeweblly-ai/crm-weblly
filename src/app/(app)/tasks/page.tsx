@@ -5,7 +5,8 @@ import { ListToolbar } from "@/components/ui/list-toolbar";
 import { EmptyState, PageHeader } from "@/components/ui/misc";
 import { TaskFormModal } from "@/components/tasks/task-form";
 import { TaskList } from "@/components/tasks/task-list";
-import { listTasks, projectOptions, type TaskRow } from "@/lib/data/crm";
+import { listTasks, projectOptions, staffOptions, type TaskFilter, type TaskRow } from "@/lib/data/crm";
+import { taskPriority, taskStatus } from "@/lib/domain/labels";
 import { daysUntil } from "@/lib/format";
 import { first } from "@/lib/utils";
 
@@ -23,16 +24,26 @@ const ORDER = ["באיחור", "היום", "השבוע", "בהמשך", "ללא �
 
 export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const sp = await searchParams;
-  const status = (first(sp.status) as "open" | "done" | "all" | undefined) ?? "open";
+  const rawStatus = first(sp.status);
+  const status = (rawStatus && ["done", "all", ...taskStatus.values].includes(rawStatus) ? rawStatus : "open") as NonNullable<TaskFilter["status"]>;
   const due = first(sp.due) as "overdue" | "week" | undefined;
   const q = first(sp.q);
-  const [tasks, projects] = await Promise.all([listTasks({ status, due, q }), projectOptions()]);
+  const isId = (v?: string) => (v && /^[0-9a-f-]{36}$/i.test(v) ? v : undefined);
+  const project = isId(first(sp.project));
+  const assignee = first(sp.assignee) === "none" ? "none" : isId(first(sp.assignee));
+  const priority = first(sp.priority);
+  const [tasks, projects, staff] = await Promise.all([
+    listTasks({ status, due, q, projectId: project, assignee, priority }),
+    projectOptions(),
+    staffOptions(),
+  ]);
+  const filtered = Boolean(q || due || project || assignee || priority || status !== "open");
 
   const add = (autoOpen = false) => (
     <TaskFormModal projects={projects} defaultOpen={autoOpen && first(sp.new) === "1"} closeHref="/tasks" trigger={<Button><Plus aria-hidden />משימה חדשה</Button>} />
   );
   const groups =
-    status === "open"
+    status !== "done" && status !== "all"
       ? ORDER.map((label) => ({ label, items: tasks.filter((t) => bucket(t) === label) })).filter((g) => g.items.length)
       : [{ label: status === "done" ? "הושלמו" : "כל המשימות", items: tasks }];
 
@@ -42,7 +53,15 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
       <ListToolbar
         searchPlaceholder="חיפוש משימה"
         filters={[
-          { name: "status", label: "מצב", allLabel: "פתוחות", options: [{ value: "done", label: "הושלמו" }, { value: "all", label: "הכול" }] },
+          {
+            name: "status",
+            label: "סטטוס",
+            allLabel: "כל הפתוחות",
+            options: [...taskStatus.list.filter((o) => o.value !== "done").map((o) => ({ value: o.value, label: o.label })), { value: "done", label: "הושלמו" }, { value: "all", label: "הכול" }],
+          },
+          { name: "project", label: "פרויקט", allLabel: "כל הפרויקטים", options: projects.map((p) => ({ value: p.value, label: p.label })) },
+          { name: "assignee", label: "אחראי", allLabel: "כל האחראים", options: [...staff, { value: "none", label: "ללא אחראי" }] },
+          { name: "priority", label: "עדיפות", allLabel: "כל העדיפויות", options: taskPriority.list.map((o) => ({ value: o.value, label: o.label })) },
           { name: "due", label: "יעד", allLabel: "כל התאריכים", options: [{ value: "overdue", label: "באיחור" }, { value: "week", label: "7 הימים הקרובים" }] },
         ]}
       />
@@ -50,9 +69,9 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         <Card>
           <EmptyState
             icon={ListChecks}
-            title={q || due || status !== "open" ? "אין משימות שמתאימות לסינון" : "אין משימות פתוחות"}
-            description={q || due || status !== "open" ? "נסה לשנות את הסינון." : "הכול בוצע. משימות חדשות אפשר להוסיף מכאן או מתוך פרויקט — כולל צ׳קליסט מוכן."}
-            action={q || due || status !== "open" ? undefined : add()}
+            title={filtered ? "אין משימות שמתאימות לסינון" : "אין משימות פתוחות"}
+            description={filtered ? "נסה לשנות את הסינון." : "הכול בוצע. משימות חדשות אפשר להוסיף מכאן או מתוך פרויקט — כולל צ׳קליסט מוכן."}
+            action={filtered ? undefined : add()}
           />
         </Card>
       ) : (

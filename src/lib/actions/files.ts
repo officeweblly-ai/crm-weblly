@@ -67,6 +67,7 @@ export async function confirmUpload(input: z.input<typeof confirmSchema>): Promi
       project_id: p.data.album_id ? null : p.data.project_id,
       album_id: p.data.album_id,
       album_section: p.data.album_id ? (p.data.album_section ?? "other") : null,
+      task_id: p.data.album_id ? null : p.data.task_id,
       source: "staff",
     })
     .select("id")
@@ -114,4 +115,17 @@ export async function deleteFile(id: string): Promise<ActionResult> {
   if (storageError) console.error("[storage] orphan object", file.storage_path, storageError.message);
   revalidatePath("/", "layout");
   return ok(undefined, `הקובץ "${file.original_name}" נמחק`);
+}
+
+/** Marks a project file as shown (or hidden) in the client presentation. */
+export async function setFileShared(id: string, shared: boolean): Promise<ActionResult> {
+  const s = await staffClient();
+  if (!s) return NOT_AUTHORIZED;
+  const { data: file } = await s.supabase.from("files").select("project_id").eq("id", id).maybeSingle();
+  if (!file) return fail("הקובץ לא נמצא.");
+  if (shared && !file.project_id) return fail("אפשר לשתף עם הלקוח רק קובץ שמשויך לפרויקט.");
+  const { error } = await s.supabase.from("files").update({ is_shared: shared }).eq("id", id);
+  if (error) return dbError(error, "העדכון נכשל");
+  revalidatePath("/", "layout");
+  return ok(undefined, shared ? "הקובץ יוצג ללקוח בעמוד הפרויקט" : "הקובץ הוסתר מהלקוח");
 }

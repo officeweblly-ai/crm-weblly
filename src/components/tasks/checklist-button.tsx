@@ -7,19 +7,30 @@ import { ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { addChecklist } from "@/lib/actions/crm";
-import { DEFAULT_CHECKLIST } from "@/lib/domain/labels";
+import { DEFAULT_CHECKLIST, DEV_CHECKLIST } from "@/lib/domain/labels";
 
-/** Offers the default checklist; the user picks what fits this project. */
-export function ChecklistButton({ projectId, existingTitles }: { projectId: string; existingTitles: string[] }) {
+/** Offers a ready checklist; the user picks what fits this project. */
+export function ChecklistButton({
+  projectId,
+  existingTitles,
+  list = "default",
+  trigger,
+}: {
+  projectId: string;
+  existingTitles: string[];
+  /** "dev" = the development checklist offered after the design is approved. */
+  list?: "default" | "dev";
+  trigger?: React.ReactNode;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
-  const available = DEFAULT_CHECKLIST.filter((c) => !existingTitles.includes(c.title));
+  const available = (list === "dev" ? DEV_CHECKLIST : DEFAULT_CHECKLIST).filter((c) => !existingTitles.includes(c.title));
   const [selected, setSelected] = useState<Set<string>>(() => new Set(available.map((c) => c.title)));
 
   const submit = () =>
     start(async () => {
-      const r = await addChecklist(projectId, [...selected]);
+      const r = await addChecklist(projectId, [...selected], list);
       if (r.ok) {
         toast.success(r.message ?? "נוסף");
         setOpen(false);
@@ -35,12 +46,14 @@ export function ChecklistButton({ projectId, existingTitles }: { projectId: stri
       onOpenChange={setOpen}
       size="sm"
       trigger={
-        <Button variant="secondary" size="sm">
-          <ListChecks aria-hidden />
-          צ׳קליסט מוכן
-        </Button>
+        trigger ?? (
+          <Button variant="secondary" size="sm">
+            <ListChecks aria-hidden />
+            צ׳קליסט מוכן
+          </Button>
+        )
       }
-      title="הוספת צ׳קליסט"
+      title={list === "dev" ? "צ׳קליסט פיתוח" : "הוספת צ׳קליסט"}
       description="סמן רק את מה שרלוונטי לפרויקט הזה."
       footer={
         <>

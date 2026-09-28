@@ -11,8 +11,12 @@ import { FilesPanel } from "@/components/files/files-panel";
 import { NotesPanel } from "@/components/notes/notes-panel";
 import { PaymentFormModal } from "@/components/payments/payment-form";
 import { PaymentsTable } from "@/components/payments/payments-table";
-import { LedgerBar, LifecycleRail } from "@/components/projects/lifecycle";
-import { NextAction } from "@/components/projects/next-action";
+import { AiHandoffCard } from "@/components/projects/ai-handoff";
+import { ControlCenter, type WaitingItem } from "@/components/projects/control-center";
+import { ApprovalsCard, PresentationCard } from "@/components/projects/project-client";
+import { ProjectFollowUps } from "@/components/projects/project-followups";
+import { ProjectLinksCard } from "@/components/projects/project-links";
+import { ProjectReferencesCard } from "@/components/projects/project-references";
 import { ProjectMenu, ProjectStatusControl } from "@/components/projects/project-controls";
 import { Deadline } from "@/components/projects/project-summary";
 import { SendQuestionnaireModal } from "@/components/questionnaires/send-questionnaire";
@@ -22,6 +26,7 @@ import { TaskFormModal } from "@/components/tasks/task-form";
 import { TaskList } from "@/components/tasks/task-list";
 import {
   getProject,
+  getProjectHub,
   listActivity,
   listContracts,
   listFiles,
@@ -33,7 +38,8 @@ import {
   templateOptions,
   withThumbs,
 } from "@/lib/data/crm";
-import { projectType } from "@/lib/domain/labels";
+import { DESIGN_APPROVAL_KINDS, DEV_CHECKLIST, projectType, type ApprovalKind } from "@/lib/domain/labels";
+import { env } from "@/lib/env";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
@@ -49,7 +55,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
   if (!project) notFound();
 
   const supabase = await createClient();
-  const [payments, openTasks, doneTasks, { rows: subs }, { rows: fileRows }, contracts, notes, activity, templates, projects, { data: client }] = await Promise.all([
+  const [payments, openTasks, doneTasks, { rows: subs }, { rows: fileRows }, contracts, notes, activity, templates, projects, { data: client }, hub] = await Promise.all([
     listPayments({ projectId: id }),
     listTasks({ projectId: id, status: "open" }),
     listTasks({ projectId: id, status: "done", limit: 50 }),
@@ -60,7 +66,8 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
     listActivity({ projectId: id, limit: 30 }),
     templateOptions(),
     projectOptions(project.client_id),
-    supabase.from("clients").select("phone").eq("id", project.client_id).maybeSingle(),
+    supabase.from("clients").select("phone, status").eq("id", project.client_id).maybeSingle(),
+    getProjectHub(id),
   ]);
   const files = await withThumbs(fileRows);
   const fin = project.financials;
@@ -68,6 +75,20 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
   const { client: _c, financials: _f, ...projectRow } = project;
   void _c;
   void _f;
+
+  // What the project is waiting on from the client — shown at the top.
+  const waiting: WaitingItem[] = [
+    ...hub.approvals.filter((a) => a.status === "pending").map((a) => ({ key: `a-${a.id}`, label: `אישור: ${a.title}`, href: "#approvals" })),
+    ...openTasks.filter((t) => t.status === "waiting_client").map((t) => ({ key: `t-${t.id}`, label: t.title, href: "#tasks" })),
+    ...subs.filter((q) => q.status === "sent" || q.status === "in_progress" || q.status === "created").map((q) => ({ key: `q-${q.id}`, label: `שאלון: ${q.title}`, href: "#questionnaires" })),
+    ...(project.status === "awaiting_deposit" ? [{ key: "deposit", label: "מקדמה", href: "#payments" }] : []),
+    ...(project.status === "awaiting_final_payment" ? [{ key: "final", label: "יתרת תשלום", href: "#payments" }] : []),
+  ];
+  const taskTitles = [...openTasks, ...doneTasks].map((t) => t.title);
+  const designApproved = hub.approvals.some((a) => a.status === "approved" && DESIGN_APPROVAL_KINDS.includes(a.kind as ApprovalKind));
+  const offerDevChecklist = designApproved && project.status !== "completed" && !DEV_CHECKLIST.some((c) => taskTitles.includes(c.title));
+  const sharedFiles = files.filter((f) => f.is_shared).length;
+  const referenceFiles = files.filter((f) => f.category === "references").length;
 
   const addPayment = <PaymentFormModal projectId={id} balance={balance} trigger={<Button size="sm"><Plus aria-hidden />רישום תשלום</Button>} />;
 
@@ -106,17 +127,18 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-5">
-          <Card>
-            <CardBody className="flex flex-col gap-5">
-              <LifecycleRail status={project.status} />
-              <NextAction projectId={project.id} value={project.next_action} />
-              <div className="border-t border-line pt-5">
-                <LedgerBar total={project.total_price} paid={fin?.amount_paid ?? 0} deposit={project.deposit_amount} />
-              </div>
-            </CardBody>
-          </Card>
+          <ControlCenter project={project} openTasks={openTasks} doneCount={doneTasks.length} waiting={waiting} />
+          <ProjectFollowUps
+            projectId={id}
+            existingTaskTitles={taskTitles}
+            offerDevChecklist={offerDevChecklist}
+            completed={project.status === "completed"}
+            portfolioId={hub.portfolioId}
+            albumId={hub.albumId}
+            clientInMaintenance={client?.status === "maintenance"}
+          />
 
-          <Card>
+          <Card id="payments" className="scroll-mt-24">
             <CardHeader title="תשלומים" description="מעקב בלבד — לא מתבצע חיוב." action={addPayment} />
             {payments.length ? (
               <div className="p-3 md:p-0"><PaymentsTable payments={payments} showProject={false} /></div>
@@ -125,12 +147,12 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             )}
           </Card>
 
-          <Card>
+          <Card id="tasks" className="scroll-mt-24">
             <CardHeader
               title="משימות"
               action={
                 <>
-                  <ChecklistButton projectId={id} existingTitles={[...openTasks, ...doneTasks].map((t) => t.title)} />
+                  <ChecklistButton projectId={id} existingTitles={taskTitles} />
                   <TaskFormModal projectId={id} trigger={<Button size="sm"><Plus aria-hidden />משימה</Button>} />
                 </>
               }
@@ -144,7 +166,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             )}
           </Card>
 
-          <Card>
+          <Card id="questionnaires" className="scroll-mt-24">
             <CardHeader title="שאלוני אפיון" />
             {subs.length ? (
               <SubmissionsList rows={subs} />
@@ -153,12 +175,23 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             )}
           </Card>
 
-          <section aria-labelledby="files-h" className="flex flex-col gap-3">
+          <ProjectReferencesCard projectId={id} references={hub.references} referenceFiles={referenceFiles} />
+
+          <ApprovalsCard
+            projectId={id}
+            approvals={hub.approvals}
+            files={files.map((f) => ({ id: f.id, original_name: f.original_name, mime_type: f.mime_type, thumbUrl: f.thumbUrl }))}
+            hasLink={Boolean(project.portal_token)}
+          />
+
+          <section id="files" aria-labelledby="files-h" className="flex scroll-mt-24 flex-col gap-3">
             <h2 id="files-h" className="text-base font-semibold text-ink">קבצים ומסמכים</h2>
             <p className="-mt-2 text-sm text-ink-3">רפרנסים, טקסטים לאתר, הסכמים וחומרים — הכול במקום אחד, מסודר לפי קטגוריה.</p>
             <FilesPanel clientId={project.client_id} projectId={id} />
             {files.length > 0 && <GroupedFiles files={files} />}
           </section>
+
+          <AiHandoffCard projectId={id} projectName={project.name} latest={hub.latestHandoff} sharedNotes={hub.sharedNotes} />
         </div>
 
         <aside className="flex min-w-0 flex-col gap-5">
@@ -171,10 +204,21 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                 <DataItem label="יעד לסיום">{project.deadline ? formatDate(project.deadline) : null}</DataItem>
                 {project.completed_at && <DataItem label="הסתיים">{formatDateTime(project.completed_at)}</DataItem>}
                 <DataItem label="תיאור">{project.description ? <span className="whitespace-pre-wrap">{project.description}</span> : null}</DataItem>
+                {project.tech_stack && <DataItem label="Tech stack"><bdi dir="ltr">{project.tech_stack}</bdi></DataItem>}
                 {project.notes && <DataItem label="הערות"><span className="whitespace-pre-wrap">{project.notes}</span></DataItem>}
               </DataList>
             </CardBody>
           </Card>
+
+          <ProjectLinksCard projectId={id} links={hub.links} />
+
+          <PresentationCard
+            project={project}
+            siteUrl={env.siteUrl()}
+            clientPhone={client?.phone ?? null}
+            sharedFiles={sharedFiles}
+            visibleLinks={hub.links.filter((l) => l.client_visible).length}
+          />
 
           <Card>
             <CardHeader

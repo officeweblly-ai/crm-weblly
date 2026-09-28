@@ -47,6 +47,35 @@ export type Database = {
           { foreignKeyName: "activity_logs_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
         ];
       };
+      approval_feedback: {
+        Row: {
+          id: string;
+          approval_id: string;
+          decision: string;
+          comment: string | null;
+          author_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          approval_id: string;
+          decision: string;
+          comment?: string | null;
+          author_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          approval_id?: string;
+          decision?: string;
+          comment?: string | null;
+          author_name?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "approval_feedback_approval_id_fkey"; columns: ["approval_id"]; isOneToOne: false; referencedRelation: "project_approvals"; referencedColumns: ["id"] },
+        ];
+      };
       clients: {
         Row: {
           id: string;
@@ -187,6 +216,8 @@ export type Database = {
           updated_at: string;
           album_id: string | null;
           album_section: string | null;
+          task_id: string | null;
+          is_shared: boolean;
         };
         Insert: {
           id?: string;
@@ -206,6 +237,8 @@ export type Database = {
           updated_at?: string;
           album_id?: string | null;
           album_section?: string | null;
+          task_id?: string | null;
+          is_shared?: boolean;
         };
         Update: {
           id?: string;
@@ -225,12 +258,15 @@ export type Database = {
           updated_at?: string;
           album_id?: string | null;
           album_section?: string | null;
+          task_id?: string | null;
+          is_shared?: boolean;
         };
         Relationships: [
           { foreignKeyName: "files_album_id_fkey"; columns: ["album_id"]; isOneToOne: false; referencedRelation: "social_albums"; referencedColumns: ["id"] },
           { foreignKeyName: "files_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
           { foreignKeyName: "files_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
           { foreignKeyName: "files_submission_id_fkey"; columns: ["submission_id"]; isOneToOne: false; referencedRelation: "form_submissions"; referencedColumns: ["id"] },
+          { foreignKeyName: "files_task_id_fkey"; columns: ["task_id"]; isOneToOne: false; referencedRelation: "tasks"; referencedColumns: ["id"] },
           { foreignKeyName: "files_uploaded_by_fkey"; columns: ["uploaded_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
@@ -561,6 +597,7 @@ export type Database = {
           author_id: string | null;
           created_at: string;
           updated_at: string;
+          share_with_ai: boolean;
         };
         Insert: {
           id?: string;
@@ -571,6 +608,7 @@ export type Database = {
           author_id?: string | null;
           created_at?: string;
           updated_at?: string;
+          share_with_ai?: boolean;
         };
         Update: {
           id?: string;
@@ -581,6 +619,7 @@ export type Database = {
           author_id?: string | null;
           created_at?: string;
           updated_at?: string;
+          share_with_ai?: boolean;
         };
         Relationships: [
           { foreignKeyName: "notes_author_id_fkey"; columns: ["author_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -639,6 +678,94 @@ export type Database = {
           { foreignKeyName: "payments_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
         ];
       };
+      portfolio_items: {
+        Row: {
+          id: string;
+          project_id: string | null;
+          client_id: string | null;
+          title: string;
+          category: string | null;
+          summary: string | null;
+          work_done: string | null;
+          technologies: string[];
+          site_url: string | null;
+          status: string;
+          position: number;
+          published_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id?: string | null;
+          client_id?: string | null;
+          title: string;
+          category?: string | null;
+          summary?: string | null;
+          work_done?: string | null;
+          technologies?: string[];
+          site_url?: string | null;
+          status?: string;
+          position?: number;
+          published_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string | null;
+          client_id?: string | null;
+          title?: string;
+          category?: string | null;
+          summary?: string | null;
+          work_done?: string | null;
+          technologies?: string[];
+          site_url?: string | null;
+          status?: string;
+          position?: number;
+          published_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "portfolio_items_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
+          { foreignKeyName: "portfolio_items_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "portfolio_items_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+        ];
+      };
+      portfolio_media: {
+        Row: {
+          id: string;
+          item_id: string;
+          file_id: string;
+          kind: string;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          file_id: string;
+          kind?: string;
+          position?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          file_id?: string;
+          kind?: string;
+          position?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "portfolio_media_file_id_fkey"; columns: ["file_id"]; isOneToOne: false; referencedRelation: "files"; referencedColumns: ["id"] },
+          { foreignKeyName: "portfolio_media_item_id_fkey"; columns: ["item_id"]; isOneToOne: false; referencedRelation: "portfolio_items"; referencedColumns: ["id"] },
+        ];
+      };
       profiles: {
         Row: {
           id: string;
@@ -669,6 +796,204 @@ export type Database = {
         };
         Relationships: [];
       };
+      project_ai_handoff_files: {
+        Row: {
+          id: string;
+          handoff_id: string;
+          name: string;
+          content: string;
+          position: number;
+        };
+        Insert: {
+          id?: string;
+          handoff_id: string;
+          name: string;
+          content: string;
+          position?: number;
+        };
+        Update: {
+          id?: string;
+          handoff_id?: string;
+          name?: string;
+          content?: string;
+          position?: number;
+        };
+        Relationships: [
+          { foreignKeyName: "project_ai_handoff_files_handoff_id_fkey"; columns: ["handoff_id"]; isOneToOne: false; referencedRelation: "project_ai_handoffs"; referencedColumns: ["id"] },
+        ];
+      };
+      project_ai_handoffs: {
+        Row: {
+          id: string;
+          project_id: string;
+          options: Json;
+          mega_prompt: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          options?: Json;
+          mega_prompt: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          options?: Json;
+          mega_prompt?: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "project_ai_handoffs_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_ai_handoffs_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+        ];
+      };
+      project_approvals: {
+        Row: {
+          id: string;
+          project_id: string;
+          title: string;
+          description: string | null;
+          kind: string;
+          preview_url: string | null;
+          file_ids: string[];
+          status: string;
+          create_task_on_changes: boolean;
+          change_task_id: string | null;
+          responded_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          title: string;
+          description?: string | null;
+          kind?: string;
+          preview_url?: string | null;
+          file_ids?: string[];
+          status?: string;
+          create_task_on_changes?: boolean;
+          change_task_id?: string | null;
+          responded_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          title?: string;
+          description?: string | null;
+          kind?: string;
+          preview_url?: string | null;
+          file_ids?: string[];
+          status?: string;
+          create_task_on_changes?: boolean;
+          change_task_id?: string | null;
+          responded_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "project_approvals_change_task_id_fkey"; columns: ["change_task_id"]; isOneToOne: false; referencedRelation: "tasks"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_approvals_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_approvals_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+        ];
+      };
+      project_links: {
+        Row: {
+          id: string;
+          project_id: string;
+          kind: string;
+          label: string | null;
+          url: string;
+          note: string | null;
+          client_visible: boolean;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          kind?: string;
+          label?: string | null;
+          url: string;
+          note?: string | null;
+          client_visible?: boolean;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          kind?: string;
+          label?: string | null;
+          url?: string;
+          note?: string | null;
+          client_visible?: boolean;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "project_links_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_links_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+        ];
+      };
+      project_references: {
+        Row: {
+          id: string;
+          project_id: string;
+          title: string;
+          url: string;
+          category: string;
+          note: string | null;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          title: string;
+          url: string;
+          category?: string;
+          note?: string | null;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          title?: string;
+          url?: string;
+          category?: string;
+          note?: string | null;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "project_references_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_references_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+        ];
+      };
       projects: {
         Row: {
           id: string;
@@ -689,6 +1014,11 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          tech_stack: string | null;
+          client_update: string | null;
+          client_action: string | null;
+          portal_token: string | null;
+          portal_enabled_at: string | null;
         };
         Insert: {
           id?: string;
@@ -709,6 +1039,11 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          tech_stack?: string | null;
+          client_update?: string | null;
+          client_action?: string | null;
+          portal_token?: string | null;
+          portal_enabled_at?: string | null;
         };
         Update: {
           id?: string;
@@ -729,6 +1064,11 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          tech_stack?: string | null;
+          client_update?: string | null;
+          client_action?: string | null;
+          portal_token?: string | null;
+          portal_enabled_at?: string | null;
         };
         Relationships: [
           { foreignKeyName: "projects_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
@@ -778,6 +1118,38 @@ export type Database = {
           { foreignKeyName: "social_albums_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
         ];
       };
+      task_checklist_items: {
+        Row: {
+          id: string;
+          task_id: string;
+          title: string;
+          is_done: boolean;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          title: string;
+          is_done?: boolean;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          title?: string;
+          is_done?: boolean;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "task_checklist_items_task_id_fkey"; columns: ["task_id"]; isOneToOne: false; referencedRelation: "tasks"; referencedColumns: ["id"] },
+        ];
+      };
       tasks: {
         Row: {
           id: string;
@@ -794,6 +1166,10 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          start_date: string | null;
+          blocked_by_task_id: string | null;
+          internal_notes: string | null;
+          links: Json;
         };
         Insert: {
           id?: string;
@@ -810,6 +1186,10 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          start_date?: string | null;
+          blocked_by_task_id?: string | null;
+          internal_notes?: string | null;
+          links?: Json;
         };
         Update: {
           id?: string;
@@ -826,9 +1206,14 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          start_date?: string | null;
+          blocked_by_task_id?: string | null;
+          internal_notes?: string | null;
+          links?: Json;
         };
         Relationships: [
           { foreignKeyName: "tasks_assigned_to_fkey"; columns: ["assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "tasks_blocked_by_task_id_fkey"; columns: ["blocked_by_task_id"]; isOneToOne: false; referencedRelation: "tasks"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
@@ -914,6 +1299,8 @@ export type Database = {
       project_type_label: { Args: { t: Database["public"]["Enums"]["project_type"] }; Returns: string };
       reorder_form_questions: { Args: { p_section_id: string; p_ids: string[] }; Returns: undefined };
       reorder_form_sections: { Args: { p_template_id: string; p_ids: string[] }; Returns: undefined };
+      respond_to_approval: { Args: { p_token: string; p_approval_id: string; p_decision: string; p_comment?: string; p_author?: string }; Returns: Json };
+      task_status_label: { Args: { s: Database["public"]["Enums"]["task_status"] }; Returns: string };
     };
     Enums: {
       client_status: "active" | "maintenance" | "on_hold" | "completed" | "archived";
@@ -930,7 +1317,7 @@ export type Database = {
       staff_role: "owner" | "admin" | "member";
       submission_status: "created" | "sent" | "in_progress" | "completed" | "cancelled";
       task_priority: "low" | "medium" | "high" | "urgent";
-      task_status: "todo" | "in_progress" | "done";
+      task_status: "todo" | "in_progress" | "waiting_client" | "blocked" | "done";
     };
     CompositeTypes: Record<string, never>;
   };

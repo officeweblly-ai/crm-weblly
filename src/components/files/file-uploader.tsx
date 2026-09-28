@@ -29,7 +29,10 @@ export function FileUploader({
   albumId,
   albumSection,
   hint,
+  taskId,
 }: {
+  /** Attach the uploaded files to a task (they still belong to the project). */
+  taskId?: string;
   albumId?: string;
   albumSection?: "process" | "before_after" | "final" | "behind_scenes" | "other";
   hint?: string;
@@ -53,7 +56,7 @@ export function FileUploader({
     setItems((l) => [...l, { key, name: file.name, size: file.size, progress: 0, state: "uploading" }]);
     try {
       if (file.size > MAX_FILE_BYTES) throw new Error("הקובץ גדול מ-50MB");
-      const ticket = await requestUpload({ name: file.name, mime: file.type, size: file.size, category, client_id: clientId ?? undefined, project_id: projectId ?? undefined, album_id: albumId, album_section: albumSection });
+      const ticket = await requestUpload({ name: file.name, mime: file.type, size: file.size, category, client_id: clientId ?? undefined, project_id: projectId ?? undefined, album_id: albumId, album_section: albumSection, task_id: taskId });
       if (!ticket.ok) throw new Error(ticket.error);
       await uploadWithProgress(ticket.data.signedUrl, file, ticket.data.mime, (progress) => patch(key, { progress }));
       const saved = await confirmUpload({
@@ -66,6 +69,7 @@ export function FileUploader({
         project_id: projectId ?? undefined,
         album_id: albumId,
         album_section: albumSection,
+        task_id: taskId,
       });
       if (!saved.ok) throw new Error(saved.error);
       patch(key, { state: "done", id: saved.data.id, progress: 100 });

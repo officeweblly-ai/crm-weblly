@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { BriefcaseBusiness, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { addProjectToPortfolio } from "@/lib/actions/portfolio";
 import { Button } from "@/components/ui/button";
 import { Confirm } from "@/components/ui/confirm";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu";
@@ -28,6 +30,16 @@ export function ProjectMenu({ project }: { project: Tables<"projects"> }) {
       </Button>
       <Menu trigger={<Button variant="secondary" size="icon" aria-label="פעולות נוספות"><MoreHorizontal /></Button>}>
         <MenuItem onSelect={() => setEditing(true)}><Pencil /> עריכת פרטים ותמחור</MenuItem>
+        <MenuItem
+          onSelect={async () => {
+            const r = await addProjectToPortfolio(project.id);
+            if (!r.ok) return void toast.error(r.error);
+            toast.success(r.message ?? "נוסף");
+            router.push(`/portfolio/${r.data.id}`);
+          }}
+        >
+          <BriefcaseBusiness /> הוספה לתיק עבודות
+        </MenuItem>
         <MenuSeparator />
         <MenuItem destructive onSelect={() => setDeleting(true)}><Trash2 /> מחיקת פרויקט</MenuItem>
       </Menu>

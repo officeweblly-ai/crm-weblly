@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Download, Eye, Film, FileArchive, FileImage, FileSpreadsheet, FileText, File as FileIcon, MoreHorizontal, Trash2, Type } from "lucide-react";
+import { Download, Eye, EyeOff, Film, FileArchive, FileImage, FileSpreadsheet, FileText, File as FileIcon, MoreHorizontal, Trash2, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Confirm } from "@/components/ui/confirm";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/menu";
 import { Modal } from "@/components/ui/modal";
-import { deleteFile, getFileUrl, updateFileMeta } from "@/lib/actions/files";
+import { deleteFile, getFileUrl, setFileShared, updateFileMeta } from "@/lib/actions/files";
 import { fileCategory, type FileCategory } from "@/lib/domain/labels";
 import { formatBytes, formatDay } from "@/lib/format";
 import { isPreviewable } from "@/lib/storage";
@@ -42,6 +42,15 @@ function FileCard({ file, showContext }: { file: FileWithThumb; showContext: boo
       else setPreview(r.data.url);
     });
 
+  const toggleShared = () =>
+    start(async () => {
+      const r = await setFileShared(file.id, !file.is_shared);
+      if (r.ok) {
+        toast.success(r.message ?? "עודכן");
+        router.refresh();
+      } else toast.error(r.error);
+    });
+
   const setCategory = (category: FileCategory) =>
     start(async () => {
       const r = await updateFileMeta({ id: file.id, category, project_id: file.project_id ?? undefined });
@@ -69,6 +78,12 @@ function FileCard({ file, showContext }: { file: FileWithThumb; showContext: boo
           <FileTypeIcon mime={file.mime_type} className="size-8 text-ink-3" />
         )}
         <span className="absolute start-2 top-2 rounded bg-surface/90 px-1.5 py-0.5 text-[11px] font-medium text-ink-2 shadow-1">{fileCategory.label(file.category)}</span>
+        {file.is_shared && (
+          <span className="absolute end-2 top-2 inline-flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[11px] font-medium text-white shadow-1">
+            <Eye className="size-3" aria-hidden />
+            מוצג ללקוח
+          </span>
+        )}
       </button>
       <div className="flex items-start gap-1 p-2.5">
         <div className="min-w-0 flex-1">
@@ -105,6 +120,11 @@ function FileCard({ file, showContext }: { file: FileWithThumb; showContext: boo
           <MenuItem onSelect={() => open(true)}>
             <Download /> הורדה
           </MenuItem>
+          {file.project_id && !file.album_id && (
+            <MenuItem onSelect={toggleShared}>
+              {file.is_shared ? <><EyeOff /> הסתרה מהלקוח</> : <><Eye /> הצגה ללקוח</>}
+            </MenuItem>
+          )}
           <MenuSeparator />
           <MenuLabel>קטגוריה</MenuLabel>
           {fileCategory.list.map((c) => (

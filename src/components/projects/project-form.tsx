@@ -137,6 +137,9 @@ export function ProjectFormModal({
         <Field label="תיאור" error={errors.description}>
           {(p) => <Textarea {...p} name="description" defaultValue={project?.description ?? ""} rows={3} placeholder="מה בונים, היקף, עמודים עיקריים…" />}
         </Field>
+        <Field label="Tech stack" error={errors.tech_stack} hint="לא חובה — נכנס לחבילת הפיתוח ל-AI. לדוגמה: Next.js, Tailwind, Supabase">
+          {(p) => <Input {...p} name="tech_stack" dir="ltr" className="text-right" defaultValue={project?.tech_stack ?? ""} maxLength={500} />}
+        </Field>
         <Field label="הערות פנימיות" error={errors.notes}>
           {(p) => <Textarea {...p} name="notes" defaultValue={project?.notes ?? ""} rows={2} />}
         </Field>
