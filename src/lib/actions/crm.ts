@@ -13,6 +13,7 @@ import {
   projectStatusSchema,
   taskSchema,
 } from "@/lib/validation/schemas";
+import { notify } from "@/lib/push";
 import { dbError, NOT_AUTHORIZED, parseForm, staffClient } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
 import type { ServerClient } from "@/lib/supabase/server";
@@ -228,6 +229,7 @@ export async function createTask(fd: FormData): Promise<ActionResult<{ id: strin
   if (!p.success) return p.result;
   const { data, error } = await s.supabase.from("tasks").insert(p.data).select("id").single();
   if (error) return dbError(error, "יצירת המשימה נכשלה");
+  await notifyAssignee(s, p.data.assigned_to, p.data.title, p.data.project_id, p.data.due_date);
   refresh();
   return ok({ id: data.id }, "המשימה נוספה");
 }
@@ -237,10 +239,28 @@ export async function updateTask(id: string, fd: FormData): Promise<ActionResult
   if (!s) return NOT_AUTHORIZED;
   const p = parseForm(taskSchema, fd);
   if (!p.success) return p.result;
+  const { data: before } = await s.supabase.from("tasks").select("assigned_to").eq("id", id).maybeSingle();
   const { error } = await s.supabase.from("tasks").update(p.data).eq("id", id);
   if (error) return dbError(error, "עדכון המשימה נכשל");
+  if (before && before.assigned_to !== p.data.assigned_to) await notifyAssignee(s, p.data.assigned_to, p.data.title, p.data.project_id, p.data.due_date);
   refresh();
   return ok({ id }, "המשימה עודכנה");
+}
+
+/** Push to whoever just got the task — unless they assigned it to themselves. */
+async function notifyAssignee(s: { supabase: ServerClient; userId: string }, assignee: string | null, title: string, projectId: string | null, due: string | null) {
+  if (!assignee || assignee === s.userId) return;
+  const [{ data: me }, { data: project }] = await Promise.all([
+    s.supabase.from("profiles").select("full_name").eq("id", s.userId).maybeSingle(),
+    projectId ? s.supabase.from("projects").select("name").eq("id", projectId).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const by = me?.full_name?.split(" ")[0];
+  notify([assignee], "task_assigned", {
+    title: "משימה חדשה בשבילך",
+    body: [title, project?.name, due ? `יעד: ${due.split("-").reverse().join("/")}` : null].filter(Boolean).join(" · ") + (by ? ` (מ${by})` : ""),
+    url: projectId ? `/projects/${projectId}#tasks` : "/tasks",
+    tag: "task",
+  });
 }
 
 export async function setTaskStatus(id: string, status: string): Promise<ActionResult> {

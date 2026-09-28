@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notify } from "@/lib/push";
 import { approvalResponseSchema } from "@/lib/validation/schemas";
 import { formToObject, parseForm } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
@@ -36,5 +37,17 @@ export async function respondToApproval(token: string, fd: FormData): Promise<Ac
   revalidatePath(`/p/${token}`);
   revalidatePath("/", "layout");
   const status = (data as { status: string }).status;
+  const [{ data: approval }, { data: project }] = await Promise.all([
+    db.from("project_approvals").select("title").eq("id", p.data.approval_id).maybeSingle(),
+    db.from("projects").select("id, name").eq("portal_token", token).maybeSingle(),
+  ]);
+  if (project) {
+    notify("staff", "approval_response", {
+      title: status === "approved" ? "הלקוח אישר" : "הלקוח ביקש שינויים",
+      body: `${approval?.title ?? "בקשת אישור"} · ${project.name}${p.data.comment ? ` — "${p.data.comment.slice(0, 120)}"` : ""}`,
+      url: `/projects/${project.id}#approvals`,
+      tag: `approval-${p.data.approval_id}`,
+    });
+  }
   return ok({ status }, status === "approved" ? "תודה! האישור נשלח לצוות." : "תודה! בקשת השינוי נשלחה לצוות.");
 }

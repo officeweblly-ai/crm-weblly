@@ -1,5 +1,6 @@
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/misc";
+import { NotificationSettings } from "@/components/shell/push-setup";
 import { AddMemberForm, ClearDemoButton, PasswordForm, ProfileForm, TeamList, WorkspaceForm } from "@/components/settings/settings-forms";
 import { requireStaff } from "@/lib/auth";
 import { workspaceSettings } from "@/lib/data/crm";
@@ -28,6 +29,12 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader title="הפרופיל שלי" />
           <CardBody className="flex flex-col gap-4"><ProfileForm profile={viewer.profile} /><PasswordForm /></CardBody>
+        </Card>
+        <Card id="notifications" className="scroll-mt-24">
+          <CardHeader title="אפליקציה והתראות" description="מתקינים את weblly במסך הבית של האייפון ומקבלים התראות גם כשהאפליקציה סגורה." />
+          <CardBody>
+            <NotificationSettings prefs={(viewer.profile.notify_prefs ?? {}) as Record<string, unknown>} />
+          </CardBody>
         </Card>
         <Card>
           <CardHeader title="צוות" description="כל מי שברשימה עובד על אותם נתונים בזמן אמת — לקוחות, פרויקטים, קבצים ותשלומים. בלי להעביר דברים בוואטסאפ." />

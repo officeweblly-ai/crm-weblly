@@ -97,13 +97,27 @@ Patterns to follow:
   (`DEV_CHECKLIST`); project completed → buttons: add to portfolio / open social album / move client to maintenance.
 - Nav: only "היום" and "תיק עבודות" were added. The mobile bottom bar is unchanged.
 
+### Installable app + push notifications (2026-09-28)
+- PWA: `src/app/manifest.ts` (start_url `/today`), icons generated with `ImageResponse` (`src/lib/app-icon.tsx`,
+  `app/apple-icon.tsx`, `/pwa-icon/192|512`), `public/sw.js` (push + notification click only, no offline cache).
+- iPhone: push works only from the home-screen app (iOS 16.4+). `AppPrompt` (top of the app) shows install steps in
+  Safari, then a one-tap "enable notifications" inside the app. Settings → "אפליקציה והתראות": device on/off, test
+  push, per-event preferences (`profiles.notify_prefs`).
+- Sending: `src/lib/push.ts` (`web-push`), called with `notify()` which runs in `after()` and never throws.
+  Events: task assigned to someone else (`createTask`/`updateTask`), questionnaire submitted (`submitQuestionnaire`),
+  client approval / change request (`respondToApproval`), morning digest (`/api/cron/digest`, Vercel Cron 04:00 UTC,
+  once per Israel day; set `CRON_SECRET` in Vercel to lock the endpoint).
+- Devices: `push_subscriptions` (deleted automatically on 404/410). VAPID keys: env `NEXT_PUBLIC_VAPID_PUBLIC_KEY` +
+  `VAPID_PRIVATE_KEY` if set, otherwise generated once into `app_private` (service-role only). Don't rotate them —
+  every device would need to re-enable notifications.
+
 ## 5. Environment & database
 
 `.env.local` (never commit): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
 `NEXT_PUBLIC_SITE_URL`, `SUPABASE_DB_URL` (direct/pooler connection string, only for scripts).
 
 Migrations are tracked in `internal.app_migrations`. Apply new ones with `npm run db:migrate`.
-Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade.
+Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications.
 **Network note:** the direct host `db.<ref>.supabase.co` is IPv6-only and does not resolve on IPv4-only networks
 (`getaddrinfo ENOTFOUND`). Use the Session pooler instead: user `postgres.<ref>`, host
 `aws-0-ap-northeast-1.pooler.supabase.com`, port 5432 (same password) — e.g. `SUPABASE_DB_URL=… npm run db:migrate`.

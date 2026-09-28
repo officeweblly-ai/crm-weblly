@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { buildSnapshot } from "@/lib/questionnaire-snapshot";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notify } from "@/lib/push";
 import {
   answersSchema,
   MAX_FILES_PER_QUESTION,
@@ -208,8 +209,16 @@ export async function submitQuestionnaire(token: string, rawAnswers: unknown): P
     console.error("[finalize]", error);
     return fail("השליחה נכשלה בגלל תקלה בשרת. התשובות שמורות — נסה שוב בעוד רגע.");
   }
-  const orphans = ((data as { orphan_paths?: string[] } | null)?.orphan_paths ?? []).filter(Boolean);
+  const result = data as { orphan_paths?: string[]; client_id?: string; created_client?: boolean } | null;
+  const orphans = (result?.orphan_paths ?? []).filter(Boolean);
   if (orphans.length) await db.storage.from(BUCKET).remove(orphans);
+  const { data: who } = result?.client_id ? await db.from("clients").select("name, business_name").eq("id", result.client_id).maybeSingle() : { data: null };
+  notify("staff", "questionnaire_submitted", {
+    title: result?.created_client ? "לקוח חדש מילא שאלון" : "שאלון אפיון התקבל",
+    body: `${who?.business_name || who?.name || "לקוח"} שלח/ה את "${r.s.snapshot.template_name}"`,
+    url: `/questionnaires/${r.s.id}`,
+    tag: `q-${r.s.id}`,
+  });
   return ok({ done: true });
 }
 

@@ -1,6 +1,7 @@
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { MobileNav, Sidebar, TopBar } from "@/components/shell/nav";
+import { AppPrompt } from "@/components/shell/push-setup";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const viewer = await requireStaff();
@@ -14,6 +15,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <div className="lg:ps-60 print:ps-0">
         <TopBar businessName={businessName} />
         <main id="main" className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12 lg:pt-8 print:max-w-none print:p-0">
+          <AppPrompt />
           {children}
         </main>
       </div>

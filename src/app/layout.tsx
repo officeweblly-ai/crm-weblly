@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: { default: "weblly — ניהול לקוחות", template: "%s · weblly" },
   description: "מערכת לניהול לידים, לקוחות, פרויקטים, אפיונים ותשלומים לעסק לבניית אתרים.",
   robots: { index: false, follow: false },
+  // Installed on the iPhone home screen: full screen, with the brand name under the icon.
+  appleWebApp: { capable: true, title: "weblly", statusBarStyle: "default" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

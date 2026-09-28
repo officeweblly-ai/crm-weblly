@@ -420,6 +420,21 @@ async function main() {
     assert.equal(draft.published_at, null);
   });
 
+  await test("push: devices are private per user, secrets are server-only", async () => {
+    await as("service_role");
+    await db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'https://push.example/owner', 'k', 'a'), ($2, 'https://push.example/second', 'k', 'a')`, [OWNER, SECOND]);
+    await db.query(`insert into app_private (key, value) values ('vapid', 'secret')`);
+    await rejects(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'http://insecure', 'k', 'a')`, [OWNER], /check constraint/);
+    await as("authenticated", OWNER);
+    const mine = await db.query<{ endpoint: string }>(`select endpoint from push_subscriptions`);
+    assert.deepEqual(mine.rows.map((r) => r.endpoint), ["https://push.example/owner"]);
+    await rejects(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'https://x', 'k', 'a')`, [OWNER], /permission denied/);
+    await rejects(`select * from app_private`, [], /permission denied/);
+    await db.query(`update profiles set notify_prefs = '{"daily_digest": false}' where id = $1`, [OWNER]);
+    await as("anon");
+    await rejects(`select * from push_subscriptions`, [], /permission denied/);
+  });
+
   await test("deleting a client cascades cleanly (no FK errors from activity triggers)", async () => {
     await as("authenticated", OWNER);
     await db.query(`delete from clients where id = $1`, [clientId]);
