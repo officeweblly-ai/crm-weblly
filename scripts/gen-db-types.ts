@@ -128,8 +128,10 @@ async function main() {
   out.push(`    };\n    Views: {`);
   for (const { table } of rels.filter((r) => r.kind === "v")) {
     const c = cols.filter((x) => x.table === table);
-    // View columns are reported nullable; our views never return null for these.
-    const row = c.map((x) => `          ${x.column}: ${tsType(x.udt, x.data_type, enumNames)}${x.column === "last_payment_at" ? " | null" : ""};`).join("\n");
+    // View columns are reported nullable; our views never return null for these —
+    // except last-payment dates and the relationship view's dates.
+    const nullable = (col: string) => col === "last_payment_at" || (table === "client_relationship" && /(_date|_at)$/.test(col));
+    const row = c.map((x) => `          ${x.column}: ${tsType(x.udt, x.data_type, enumNames)}${nullable(x.column) ? " | null" : ""};`).join("\n");
     out.push(`      ${table}: {\n        Row: {\n${row}\n        };\n        Relationships: [];\n      };`);
   }
   out.push(`    };\n    Functions: {`);

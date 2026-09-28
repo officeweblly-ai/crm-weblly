@@ -47,6 +47,32 @@ export type Database = {
           { foreignKeyName: "activity_logs_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
         ];
       };
+      alert_states: {
+        Row: {
+          key: string;
+          snoozed_until: string | null;
+          dismissed_at: string | null;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          snoozed_until?: string | null;
+          dismissed_at?: string | null;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          snoozed_until?: string | null;
+          dismissed_at?: string | null;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "alert_states_updated_by_fkey"; columns: ["updated_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
       app_private: {
         Row: {
           key: string;
@@ -94,6 +120,55 @@ export type Database = {
           { foreignKeyName: "approval_feedback_approval_id_fkey"; columns: ["approval_id"]; isOneToOne: false; referencedRelation: "project_approvals"; referencedColumns: ["id"] },
         ];
       };
+      client_interactions: {
+        Row: {
+          id: string;
+          client_id: string;
+          project_id: string | null;
+          kind: string;
+          occurred_at: string;
+          user_id: string | null;
+          summary: string;
+          result: string | null;
+          next_action: string | null;
+          follow_up_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          project_id?: string | null;
+          kind?: string;
+          occurred_at?: string;
+          user_id?: string | null;
+          summary: string;
+          result?: string | null;
+          next_action?: string | null;
+          follow_up_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          project_id?: string | null;
+          kind?: string;
+          occurred_at?: string;
+          user_id?: string | null;
+          summary?: string;
+          result?: string | null;
+          next_action?: string | null;
+          follow_up_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "client_interactions_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
+          { foreignKeyName: "client_interactions_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+          { foreignKeyName: "client_interactions_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
       clients: {
         Row: {
           id: string;
@@ -111,6 +186,9 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          last_interaction_at: string | null;
+          next_follow_up_date: string | null;
+          services: string | null;
         };
         Insert: {
           id?: string;
@@ -128,6 +206,9 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          last_interaction_at?: string | null;
+          next_follow_up_date?: string | null;
+          services?: string | null;
         };
         Update: {
           id?: string;
@@ -145,9 +226,92 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          last_interaction_at?: string | null;
+          next_follow_up_date?: string | null;
+          services?: string | null;
         };
         Relationships: [
           { foreignKeyName: "clients_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      contract_signatures: {
+        Row: {
+          id: string;
+          contract_id: string;
+          version: number;
+          signer_name: string;
+          signer_id_number: string | null;
+          signer_email: string | null;
+          signature_png: string;
+          content_hash: string;
+          ip: string | null;
+          user_agent: string | null;
+          signed_at: string;
+        };
+        Insert: {
+          id?: string;
+          contract_id: string;
+          version: number;
+          signer_name: string;
+          signer_id_number?: string | null;
+          signer_email?: string | null;
+          signature_png: string;
+          content_hash: string;
+          ip?: string | null;
+          user_agent?: string | null;
+          signed_at?: string;
+        };
+        Update: {
+          id?: string;
+          contract_id?: string;
+          version?: number;
+          signer_name?: string;
+          signer_id_number?: string | null;
+          signer_email?: string | null;
+          signature_png?: string;
+          content_hash?: string;
+          ip?: string | null;
+          user_agent?: string | null;
+          signed_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "contract_signatures_contract_id_fkey"; columns: ["contract_id"]; isOneToOne: false; referencedRelation: "contracts"; referencedColumns: ["id"] },
+        ];
+      };
+      contract_versions: {
+        Row: {
+          id: string;
+          contract_id: string;
+          version: number;
+          title: string;
+          content: Json;
+          content_hash: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          contract_id: string;
+          version: number;
+          title: string;
+          content: Json;
+          content_hash: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          contract_id?: string;
+          version?: number;
+          title?: string;
+          content?: Json;
+          content_hash?: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "contract_versions_contract_id_fkey"; columns: ["contract_id"]; isOneToOne: false; referencedRelation: "contracts"; referencedColumns: ["id"] },
+          { foreignKeyName: "contract_versions_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
       contracts: {
@@ -169,6 +333,11 @@ export type Database = {
           updated_at: string;
           contract_number: string | null;
           content: Json | null;
+          version: number;
+          sign_token: string | null;
+          sent_at: string | null;
+          signed_version: number | null;
+          proposal_id: string | null;
         };
         Insert: {
           id?: string;
@@ -188,6 +357,11 @@ export type Database = {
           updated_at?: string;
           contract_number?: string | null;
           content?: Json | null;
+          version?: number;
+          sign_token?: string | null;
+          sent_at?: string | null;
+          signed_version?: number | null;
+          proposal_id?: string | null;
         };
         Update: {
           id?: string;
@@ -207,12 +381,18 @@ export type Database = {
           updated_at?: string;
           contract_number?: string | null;
           content?: Json | null;
+          version?: number;
+          sign_token?: string | null;
+          sent_at?: string | null;
+          signed_version?: number | null;
+          proposal_id?: string | null;
         };
         Relationships: [
           { foreignKeyName: "contracts_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
           { foreignKeyName: "contracts_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "contracts_file_id_fkey"; columns: ["file_id"]; isOneToOne: false; referencedRelation: "files"; referencedColumns: ["id"] },
           { foreignKeyName: "contracts_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+          { foreignKeyName: "contracts_proposal_id_fkey"; columns: ["proposal_id"]; isOneToOne: false; referencedRelation: "proposals"; referencedColumns: ["id"] },
         ];
       };
       files: {
@@ -236,6 +416,8 @@ export type Database = {
           album_section: string | null;
           task_id: string | null;
           is_shared: boolean;
+          caption: string | null;
+          posted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -257,6 +439,8 @@ export type Database = {
           album_section?: string | null;
           task_id?: string | null;
           is_shared?: boolean;
+          caption?: string | null;
+          posted_at?: string | null;
         };
         Update: {
           id?: string;
@@ -278,6 +462,8 @@ export type Database = {
           album_section?: string | null;
           task_id?: string | null;
           is_shared?: boolean;
+          caption?: string | null;
+          posted_at?: string | null;
         };
         Relationships: [
           { foreignKeyName: "files_album_id_fkey"; columns: ["album_id"]; isOneToOne: false; referencedRelation: "social_albums"; referencedColumns: ["id"] },
@@ -286,6 +472,60 @@ export type Database = {
           { foreignKeyName: "files_submission_id_fkey"; columns: ["submission_id"]; isOneToOne: false; referencedRelation: "form_submissions"; referencedColumns: ["id"] },
           { foreignKeyName: "files_task_id_fkey"; columns: ["task_id"]; isOneToOne: false; referencedRelation: "tasks"; referencedColumns: ["id"] },
           { foreignKeyName: "files_uploaded_by_fkey"; columns: ["uploaded_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      follow_ups: {
+        Row: {
+          id: string;
+          client_id: string;
+          project_id: string | null;
+          assigned_to: string | null;
+          due_date: string;
+          reason: string;
+          note: string | null;
+          status: string;
+          done_at: string | null;
+          interaction_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          project_id?: string | null;
+          assigned_to?: string | null;
+          due_date: string;
+          reason: string;
+          note?: string | null;
+          status?: string;
+          done_at?: string | null;
+          interaction_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          project_id?: string | null;
+          assigned_to?: string | null;
+          due_date?: string;
+          reason?: string;
+          note?: string | null;
+          status?: string;
+          done_at?: string | null;
+          interaction_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "follow_ups_assigned_to_fkey"; columns: ["assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "follow_ups_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
+          { foreignKeyName: "follow_ups_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "follow_ups_interaction_id_fkey"; columns: ["interaction_id"]; isOneToOne: false; referencedRelation: "client_interactions"; referencedColumns: ["id"] },
+          { foreignKeyName: "follow_ups_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
         ];
       };
       form_answers: {
@@ -645,6 +885,50 @@ export type Database = {
           { foreignKeyName: "notes_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
         ];
       };
+      notification_log: {
+        Row: {
+          id: string;
+          user_id: string;
+          kind: string;
+          day: string;
+          title: string;
+          body: string;
+          url: string | null;
+          status: string;
+          devices: number;
+          error: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          kind: string;
+          day: string;
+          title?: string;
+          body?: string;
+          url?: string | null;
+          status?: string;
+          devices?: number;
+          error?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          kind?: string;
+          day?: string;
+          title?: string;
+          body?: string;
+          url?: string | null;
+          status?: string;
+          devices?: number;
+          error?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "notification_log_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
       payments: {
         Row: {
           id: string;
@@ -713,6 +997,9 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          client_display_name: string | null;
+          services: string[];
+          is_featured: boolean;
         };
         Insert: {
           id?: string;
@@ -730,6 +1017,9 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          client_display_name?: string | null;
+          services?: string[];
+          is_featured?: boolean;
         };
         Update: {
           id?: string;
@@ -747,6 +1037,9 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          client_display_name?: string | null;
+          services?: string[];
+          is_featured?: boolean;
         };
         Relationships: [
           { foreignKeyName: "portfolio_items_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
@@ -794,6 +1087,13 @@ export type Database = {
           created_at: string;
           updated_at: string;
           notify_prefs: Json;
+          job_title: string | null;
+          phone: string | null;
+          avatar_color: string | null;
+          working_days: number[];
+          work_start: string | null;
+          work_end: string | null;
+          morning_time: string;
         };
         Insert: {
           id: string;
@@ -804,6 +1104,13 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           notify_prefs?: Json;
+          job_title?: string | null;
+          phone?: string | null;
+          avatar_color?: string | null;
+          working_days?: number[];
+          work_start?: string | null;
+          work_end?: string | null;
+          morning_time?: string;
         };
         Update: {
           id?: string;
@@ -814,6 +1121,13 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           notify_prefs?: Json;
+          job_title?: string | null;
+          phone?: string | null;
+          avatar_color?: string | null;
+          working_days?: number[];
+          work_start?: string | null;
+          work_end?: string | null;
+          morning_time?: string;
         };
         Relationships: [];
       };
@@ -985,6 +1299,7 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          thumbnail_url: string | null;
         };
         Insert: {
           id?: string;
@@ -997,6 +1312,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          thumbnail_url?: string | null;
         };
         Update: {
           id?: string;
@@ -1009,6 +1325,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          thumbnail_url?: string | null;
         };
         Relationships: [
           { foreignKeyName: "project_references_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -1040,6 +1357,7 @@ export type Database = {
           client_action: string | null;
           portal_token: string | null;
           portal_enabled_at: string | null;
+          owner_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1065,6 +1383,7 @@ export type Database = {
           client_action?: string | null;
           portal_token?: string | null;
           portal_enabled_at?: string | null;
+          owner_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1090,10 +1409,140 @@ export type Database = {
           client_action?: string | null;
           portal_token?: string | null;
           portal_enabled_at?: string | null;
+          owner_id?: string | null;
         };
         Relationships: [
           { foreignKeyName: "projects_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
           { foreignKeyName: "projects_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "projects_owner_id_fkey"; columns: ["owner_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      proposal_items: {
+        Row: {
+          id: string;
+          proposal_id: string;
+          kind: string;
+          title: string;
+          description: string | null;
+          amount: number | null;
+          position: number;
+        };
+        Insert: {
+          id?: string;
+          proposal_id: string;
+          kind?: string;
+          title: string;
+          description?: string | null;
+          amount?: number | null;
+          position?: number;
+        };
+        Update: {
+          id?: string;
+          proposal_id?: string;
+          kind?: string;
+          title?: string;
+          description?: string | null;
+          amount?: number | null;
+          position?: number;
+        };
+        Relationships: [
+          { foreignKeyName: "proposal_items_proposal_id_fkey"; columns: ["proposal_id"]; isOneToOne: false; referencedRelation: "proposals"; referencedColumns: ["id"] },
+        ];
+      };
+      proposals: {
+        Row: {
+          id: string;
+          number: string | null;
+          client_id: string;
+          project_id: string | null;
+          submission_id: string | null;
+          title: string;
+          project_type: Database["public"]["Enums"]["project_type"] | null;
+          intro: string | null;
+          scope: string | null;
+          price: number;
+          deposit: number;
+          milestones: Json;
+          delivery_estimate: string | null;
+          valid_until: string | null;
+          notes: string | null;
+          internal_notes: string | null;
+          status: string;
+          public_token: string | null;
+          sent_at: string | null;
+          viewed_at: string | null;
+          responded_at: string | null;
+          response_name: string | null;
+          response_note: string | null;
+          converted_project_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          number?: string | null;
+          client_id: string;
+          project_id?: string | null;
+          submission_id?: string | null;
+          title: string;
+          project_type?: Database["public"]["Enums"]["project_type"] | null;
+          intro?: string | null;
+          scope?: string | null;
+          price?: number;
+          deposit?: number;
+          milestones?: Json;
+          delivery_estimate?: string | null;
+          valid_until?: string | null;
+          notes?: string | null;
+          internal_notes?: string | null;
+          status?: string;
+          public_token?: string | null;
+          sent_at?: string | null;
+          viewed_at?: string | null;
+          responded_at?: string | null;
+          response_name?: string | null;
+          response_note?: string | null;
+          converted_project_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          number?: string | null;
+          client_id?: string;
+          project_id?: string | null;
+          submission_id?: string | null;
+          title?: string;
+          project_type?: Database["public"]["Enums"]["project_type"] | null;
+          intro?: string | null;
+          scope?: string | null;
+          price?: number;
+          deposit?: number;
+          milestones?: Json;
+          delivery_estimate?: string | null;
+          valid_until?: string | null;
+          notes?: string | null;
+          internal_notes?: string | null;
+          status?: string;
+          public_token?: string | null;
+          sent_at?: string | null;
+          viewed_at?: string | null;
+          responded_at?: string | null;
+          response_name?: string | null;
+          response_note?: string | null;
+          converted_project_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "proposals_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
+          { foreignKeyName: "proposals_converted_project_id_fkey"; columns: ["converted_project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+          { foreignKeyName: "proposals_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "proposals_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+          { foreignKeyName: "proposals_submission_id_fkey"; columns: ["submission_id"]; isOneToOne: false; referencedRelation: "form_submissions"; referencedColumns: ["id"] },
         ];
       };
       push_subscriptions: {
@@ -1226,6 +1675,9 @@ export type Database = {
           blocked_by_task_id: string | null;
           internal_notes: string | null;
           links: Json;
+          secondary_assigned_to: string | null;
+          category: string | null;
+          auto_key: string | null;
         };
         Insert: {
           id?: string;
@@ -1246,6 +1698,9 @@ export type Database = {
           blocked_by_task_id?: string | null;
           internal_notes?: string | null;
           links?: Json;
+          secondary_assigned_to?: string | null;
+          category?: string | null;
+          auto_key?: string | null;
         };
         Update: {
           id?: string;
@@ -1266,6 +1721,9 @@ export type Database = {
           blocked_by_task_id?: string | null;
           internal_notes?: string | null;
           links?: Json;
+          secondary_assigned_to?: string | null;
+          category?: string | null;
+          auto_key?: string | null;
         };
         Relationships: [
           { foreignKeyName: "tasks_assigned_to_fkey"; columns: ["assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -1273,6 +1731,49 @@ export type Database = {
           { foreignKeyName: "tasks_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+          { foreignKeyName: "tasks_secondary_assigned_to_fkey"; columns: ["secondary_assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      team_responsibilities: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          category: string;
+          assigned_to: string | null;
+          is_active: boolean;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          category?: string;
+          assigned_to?: string | null;
+          is_active?: boolean;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          description?: string | null;
+          category?: string;
+          assigned_to?: string | null;
+          is_active?: boolean;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "team_responsibilities_assigned_to_fkey"; columns: ["assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "team_responsibilities_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
       workspace_settings: {
@@ -1329,6 +1830,19 @@ export type Database = {
         };
         Relationships: [];
       };
+      client_relationship: {
+        Row: {
+          client_id: string;
+          first_purchase_date: string | null;
+          last_purchase_date: string | null;
+          last_payment_date: string | null;
+          total_revenue: number;
+          project_count: number;
+          active_project_count: number;
+          last_activity_at: string | null;
+        };
+        Relationships: [];
+      };
       project_financials: {
         Row: {
           project_id: string;
@@ -1349,17 +1863,24 @@ export type Database = {
       duplicate_form_template: { Args: { p_template_id: string; p_name?: string }; Returns: string };
       finalize_questionnaire: { Args: { p_submission_id: string; p_answers: Json; p_client: Json }; Returns: Json };
       format_ils: { Args: { amount: number }; Returns: string };
+      interaction_kind_label: { Args: { k: string }; Returns: string };
       is_owner: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_staff: { Args: Record<PropertyKey, never>; Returns: boolean };
+      mark_proposal_viewed: { Args: { p_token: string }; Returns: undefined };
+      open_auto_task: { Args: { p_key: string; p_title: string; p_category: string; p_project_id: string; p_client_id: string; p_priority?: Database["public"]["Enums"]["task_priority"]; p_assignee?: string }; Returns: string };
       project_status_label: { Args: { s: Database["public"]["Enums"]["project_status"] }; Returns: string };
       project_type_label: { Args: { t: Database["public"]["Enums"]["project_type"] }; Returns: string };
       reorder_form_questions: { Args: { p_section_id: string; p_ids: string[] }; Returns: undefined };
       reorder_form_sections: { Args: { p_template_id: string; p_ids: string[] }; Returns: undefined };
       respond_to_approval: { Args: { p_token: string; p_approval_id: string; p_decision: string; p_comment?: string; p_author?: string }; Returns: Json };
+      respond_to_proposal: { Args: { p_token: string; p_decision: string; p_name?: string; p_note?: string }; Returns: Json };
+      responsible_for: { Args: { p_category: string }; Returns: string };
+      sign_contract: { Args: { p_token: string; p_version: number; p_hash: string; p_name: string; p_id_number: string; p_email: string; p_signature: string; p_ip?: string; p_user_agent?: string }; Returns: Json };
       task_status_label: { Args: { s: Database["public"]["Enums"]["task_status"] }; Returns: string };
+      work_category_label: { Args: { c: string }; Returns: string };
     };
     Enums: {
-      client_status: "active" | "maintenance" | "on_hold" | "completed" | "archived";
+      client_status: "lead" | "new" | "active" | "maintenance" | "returning" | "on_hold" | "completed" | "inactive" | "archived";
       contract_status: "draft" | "sent" | "signed" | "cancelled";
       file_category: "branding" | "references" | "site_texts" | "images" | "contracts" | "questionnaire" | "invoices" | "client_materials" | "deliverables" | "social" | "other";
       lead_source: "website" | "referral" | "instagram" | "facebook" | "google" | "whatsapp" | "returning_client" | "other";
@@ -1373,7 +1894,7 @@ export type Database = {
       staff_role: "owner" | "admin" | "member";
       submission_status: "created" | "sent" | "in_progress" | "completed" | "cancelled";
       task_priority: "low" | "medium" | "high" | "urgent";
-      task_status: "todo" | "in_progress" | "waiting_client" | "blocked" | "done";
+      task_status: "todo" | "in_progress" | "waiting_client" | "waiting_team" | "blocked" | "done";
     };
     CompositeTypes: Record<string, never>;
   };

@@ -303,7 +303,8 @@ async function main() {
     assert.equal(Number(m.outstanding_balance), 5000);
     // 1 converted-lead project + 2 opened automatically by questionnaires
     assert.equal(Number(m.active_projects), 3);
-    assert.equal(Number(m.open_tasks), 1);
+    // 1 manual task + 3 "review the questionnaire" tasks opened by V3 (one per submitted questionnaire)
+    assert.equal(Number(m.open_tasks), 4);
   });
 
   await test("profiles: only owner changes roles; members cannot self-promote", async () => {
@@ -433,6 +434,204 @@ async function main() {
     await db.query(`update profiles set notify_prefs = '{"daily_digest": false}' where id = $1`, [OWNER]);
     await as("anon");
     await rejects(`select * from push_subscriptions`, [], /permission denied/);
+  });
+
+  // -------------------------------------------------------------------------
+  // V3
+  // -------------------------------------------------------------------------
+  await test("v3 team: responsibilities route automations, profile fields are self-editable", async () => {
+    await as("authenticated", SECOND);
+    await db.query(`update profiles set job_title = 'שותפה', working_days = '{0,1,2,3}', morning_time = '09:15' where id = $1`, [SECOND]);
+    await rejects(`update profiles set working_days = '{7}' where id = $1`, [SECOND], /check constraint/);
+    await as("authenticated", OWNER);
+    await db.query(`insert into team_responsibilities (title, category, assigned_to) values ('פיתוח', 'development', $1), ('הצעות מחיר', 'proposals', $2), ('חוזים', 'contracts', $2), ('גבייה', 'finance', $2)`, [OWNER, SECOND]);
+    const who = await one<{ dev: string; prop: string; none: string | null }>(`select responsible_for('development') dev, responsible_for('proposals') prop, responsible_for('social') none`);
+    assert.equal(who.dev, OWNER);
+    assert.equal(who.prop, SECOND);
+    assert.equal(who.none, null);
+    // An inactive responsibility is ignored.
+    await db.query(`update team_responsibilities set is_active = false where category = 'development'`);
+    assert.equal((await one<{ r: string | null }>(`select responsible_for('development') r`)).r, null);
+    await db.query(`update team_responsibilities set is_active = true where category = 'development'`);
+    await rejects(`insert into team_responsibilities (title, category) values ('x', 'nope')`, [], /check constraint/);
+    await rejects(`select open_auto_task('k', 't', 'development', null, null)`, [], /permission denied/);
+    await as("anon");
+    await rejects(`select * from team_responsibilities`, [], /permission denied/);
+  });
+
+  let v3Client = "";
+  let v3Project = "";
+  await test("v3 tasks: owner + secondary, waiting for team, category", async () => {
+    await as("authenticated", OWNER);
+    v3Client = (await one<{ id: string }>(`insert into clients (name, business_name) values ('נועה ברק', 'GOOM') returning id`)).id;
+    v3Project = (await one<{ id: string }>(`insert into projects (client_id, name, total_price, deposit_amount, status, owner_id) values ($1, 'אתר GOOM', 10000, 4000, 'development', $2) returning id`, [v3Client, OWNER])).id;
+    const t = await one<{ id: string }>(`insert into tasks (title, project_id, assigned_to, secondary_assigned_to, category, status) values ('גרסת מובייל', $1, $2, $3, 'development', 'waiting_team') returning id`, [v3Project, OWNER, SECOND]);
+    await rejects(`update tasks set secondary_assigned_to = assigned_to where id = $1`, [t.id], /secondary_differs/);
+    await rejects(`update tasks set category = 'nope' where id = $1`, [t.id], /check constraint/);
+    await db.query(`update tasks set status = 'blocked' where id = $1`, [t.id]);
+    const log = await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'task.status_changed' and entity_id = $1`, [t.id]);
+    assert.equal(log.n, 1);
+  });
+
+  await test("v3 questionnaire received opens one review task for the proposals owner", async () => {
+    await as("service_role");
+    const s = await one<{ id: string }>(`insert into form_submissions (token, title, form_snapshot, client_id, project_id) values (repeat('q', 43), 'אתר תדמית', '{}', $1, $2) returning id`, [v3Client, v3Project]);
+    await db.query(`select finalize_questionnaire($1, '[]'::jsonb, '{}'::jsonb)`, [s.id]);
+    const t = await one<{ title: string; assigned_to: string; category: string; auto_key: string }>(`select title, assigned_to, category, auto_key from tasks where auto_key = $1`, [`questionnaire_review:${s.id}`]);
+    assert.match(t.title, /GOOM/);
+    assert.equal(t.assigned_to, SECOND);
+    assert.equal(t.category, "proposals");
+    // The same event can't open a second task.
+    await as("postgres");
+    const again = await one<{ id: string | null }>(`select open_auto_task($1, 'x', 'proposals', null, $2) id`, [`questionnaire_review:${s.id}`, v3Client]);
+    assert.equal(again.id, null);
+  });
+
+  await test("v3 interactions update the client and open a follow-up", async () => {
+    await as("authenticated", OWNER);
+    await db.query(`insert into client_interactions (client_id, kind, summary, next_action, follow_up_date, occurred_at) values ($1, 'phone', 'שיחה על התמונות', 'לבקש תמונות', '2026-10-05', '2026-09-20T10:00:00Z')`, [v3Client]);
+    const c = await one<{ last_interaction_at: string; next_follow_up_date: string }>(`select last_interaction_at, next_follow_up_date::text from clients where id = $1`, [v3Client]);
+    assert.ok(c.last_interaction_at);
+    assert.equal(c.next_follow_up_date, "2026-10-05");
+    const f = await one<{ id: string; reason: string; assigned_to: string }>(`select id, reason, assigned_to from follow_ups where client_id = $1`, [v3Client]);
+    assert.equal(f.reason, "לבקש תמונות");
+    assert.equal(f.assigned_to, OWNER);
+    // An older interaction never moves the date backwards; internal notes don't count as contact.
+    await db.query(`insert into client_interactions (client_id, kind, summary, occurred_at) values ($1, 'whatsapp', 'ישן', '2026-01-01T10:00:00Z')`, [v3Client]);
+    await db.query(`insert into client_interactions (client_id, kind, summary) values ($1, 'internal_note', 'הערה')`, [v3Client]);
+    const after = await one<{ d: string }>(`select last_interaction_at::date::text d from clients where id = $1`, [v3Client]);
+    assert.equal(after.d, "2026-09-20");
+    await db.query(`update follow_ups set status = 'done' where id = $1`, [f.id]);
+    const done = await one<{ next_follow_up_date: string | null; done_at: string | null }>(
+      `select c.next_follow_up_date, f.done_at from clients c, follow_ups f where c.id = $1 and f.id = $2`, [v3Client, f.id]);
+    assert.equal(done.next_follow_up_date, null);
+    assert.ok(done.done_at);
+    const types = await db.query<{ type: string }>(`select distinct type from activity_logs where client_id = $1 and type in ('interaction.added', 'followup.created', 'followup.done')`, [v3Client]);
+    assert.equal(types.rows.length, 3);
+    const rel = await one<{ total_revenue: string; project_count: number; last_activity_at: string }>(`select * from client_relationship where client_id = $1`, [v3Client]);
+    assert.equal(Number(rel.total_revenue), 0);
+    assert.equal(rel.project_count, 1);
+    assert.ok(rel.last_activity_at);
+  });
+
+  let proposalId = "";
+  await test("v3 proposals: client answers only through the token; accepting opens a contract task", async () => {
+    await as("authenticated", OWNER);
+    const token = "p".repeat(43);
+    proposalId = (await one<{ id: string }>(
+      `insert into proposals (client_id, project_id, title, price, deposit, status, public_token, valid_until) values ($1, $2, 'הצעה לאתר GOOM', 12000, 4000, 'sent', $3, '2099-01-01') returning id`,
+      [v3Client, v3Project, token],
+    )).id;
+    await db.query(`insert into proposal_items (proposal_id, title) values ($1, 'עיצוב ופיתוח'), ($1, 'התאמה למובייל')`, [proposalId]);
+    await db.query(`insert into proposal_items (proposal_id, kind, title) values ($1, 'excluded', 'צילום מוצרים')`, [proposalId]);
+    await rejects(`update proposals set deposit = 20000 where id = $1`, [proposalId], /deposit_le_price/);
+    await rejects(`select respond_to_proposal($1, 'accepted', 'נועה')`, [token], /permission denied/);
+    await as("service_role");
+    await db.query(`select mark_proposal_viewed($1)`, [token]);
+    assert.equal((await one<{ status: string }>(`select status from proposals where id = $1`, [proposalId])).status, "viewed");
+    await rejects(`select respond_to_proposal($1, 'accepted', 'נועה')`, ["z".repeat(43)], /Invalid link/);
+    await rejects(`select respond_to_proposal($1, 'accepted', '  ')`, [token], /name is required/);
+    const r = await one<{ respond_to_proposal: { status: string; task_id: string } }>(`select respond_to_proposal($1, 'accepted', 'נועה ברק')`, [token]);
+    assert.equal(r.respond_to_proposal.status, "accepted");
+    const t = await one<{ title: string; assigned_to: string }>(`select title, assigned_to from tasks where id = $1`, [r.respond_to_proposal.task_id]);
+    assert.match(t.title, /חוזה/);
+    assert.equal(t.assigned_to, SECOND);
+    await rejects(`select respond_to_proposal($1, 'rejected')`, [token], /already answered/);
+    const p = await one<{ responded_at: string | null; viewed_at: string | null }>(`select responded_at, viewed_at from proposals where id = $1`, [proposalId]);
+    assert.ok(p.responded_at && p.viewed_at);
+    // Expired offers can't be accepted.
+    await as("authenticated", OWNER);
+    const old = "o".repeat(43);
+    await db.query(`insert into proposals (client_id, title, status, public_token, valid_until) values ($1, 'ישנה', 'sent', $2, '2020-01-01')`, [v3Client, old]);
+    await as("service_role");
+    await rejects(`select respond_to_proposal($1, 'accepted', 'x')`, [old], /expired/);
+    await as("anon");
+    await rejects(`select * from proposals`, [], /permission denied/);
+  });
+
+  await test("v3 contracts: signing binds to a frozen version; edits after signing create a new version", async () => {
+    await as("authenticated", OWNER);
+    const token = "s".repeat(43);
+    const hash = "a".repeat(64);
+    const c = await one<{ id: string }>(
+      `insert into contracts (client_id, project_id, title, content, proposal_id) values ($1, $2, 'הסכם GOOM', '{"scope": "v1"}', $3) returning id`,
+      [v3Client, v3Project, proposalId],
+    );
+    await db.query(`insert into contract_versions (contract_id, version, title, content, content_hash) values ($1, 1, 'הסכם GOOM', '{"scope": "v1"}', $2)`, [c.id, hash]);
+    await db.query(`update contracts set status = 'sent', sign_token = $2, sent_at = now() where id = $1`, [c.id, token]);
+    await rejects(`update contract_versions set content = '{}' where contract_id = $1`, [c.id], /permission denied/);
+    await rejects(`delete from contract_versions where contract_id = $1`, [c.id], /permission denied/);
+    await rejects(`insert into contract_signatures (contract_id, version, signer_name, signature_png, content_hash) values ($1, 1, 'x', 'data:image/png;base64,AA', 'x')`, [c.id], /permission denied/);
+
+    const png = "data:image/png;base64,iVBORw0KGgo=";
+    await as("service_role");
+    await rejects(`select sign_contract($1, 1, $2, 'נועה', null, null, $3)`, [token, "b".repeat(64), png], /changed/);
+    await rejects(`select sign_contract($1, 2, $2, 'נועה', null, null, $3)`, [token, hash, png], /changed/);
+    await rejects(`select sign_contract($1, 1, $2, 'נועה', null, null, 'not-an-image')`, [token, hash], /check constraint/);
+    const r = await one<{ sign_contract: { status: string; version: number; task_id: string | null } }>(
+      `select sign_contract($1, 1, $2, 'נועה ברק', '123456789', 'noa@goom.co.il', $3, '1.2.3.4', 'iPhone')`, [token, hash, png],
+    );
+    assert.equal(r.sign_contract.status, "signed");
+    assert.ok(r.sign_contract.task_id, "deposit not covered → a finance task is opened");
+    const signed = await one<{ status: string; signed_version: number; signed_at: string }>(`select status, signed_version, signed_at from contracts where id = $1`, [c.id]);
+    assert.equal(signed.status, "signed");
+    assert.equal(signed.signed_version, 1);
+    assert.ok(signed.signed_at);
+    await rejects(`select sign_contract($1, 1, $2, 'נועה', null, null, $3)`, [token, hash, png], /Already signed/);
+
+    // Changing the text after signing → version 2 in draft; version 1 and its signature stay.
+    await as("authenticated", OWNER);
+    const v2 = await one<{ version: number; status: string; signed_at: string | null }>(`update contracts set content = '{"scope": "v2"}' where id = $1 returning version, status, signed_at`, [c.id]);
+    assert.deepEqual(v2, { version: 2, status: "draft", signed_at: null });
+    const kept = await one<{ content: { scope: string }; sigs: number }>(
+      `select v.content, (select count(*)::int from contract_signatures s where s.contract_id = $1 and s.version = 1) sigs from contract_versions v where v.contract_id = $1 and v.version = 1`, [c.id]);
+    assert.equal(kept.content.scope, "v1");
+    assert.equal(kept.sigs, 1);
+    // A draft (not re-sent) can't be signed.
+    await as("service_role");
+    await rejects(`select sign_contract($1, 2, $2, 'נועה', null, null, $3)`, [token, hash, png], /not open for signing/);
+    const log = await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'contract.signed_digitally'`);
+    assert.equal(log.n, 1);
+  });
+
+  await test("v3 approvals: change requests go to the project owner", async () => {
+    await as("authenticated", OWNER);
+    const token = "u".repeat(43);
+    await db.query(`update projects set portal_token = $2, owner_id = $3 where id = $1`, [v3Project, token, SECOND]);
+    const a = await one<{ id: string }>(`insert into project_approvals (project_id, title, kind) values ($1, 'Hero מובייל', 'feature') returning id`, [v3Project]);
+    await as("service_role");
+    const r = await one<{ respond_to_approval: { task_id: string } }>(`select respond_to_approval($1, $2, 'changes_requested', 'להקטין את הכותרת')`, [token, a.id]);
+    const t = await one<{ assigned_to: string; category: string }>(`select assigned_to, category from tasks where id = $1`, [r.respond_to_approval.task_id]);
+    assert.equal(t.assigned_to, SECOND);
+    assert.equal(t.category, "development");
+  });
+
+  await test("v3 links, references, social reels, portfolio fields", async () => {
+    await as("authenticated", OWNER);
+    await db.query(`insert into project_links (project_id, kind, url) values ($1, 'claude_code', 'https://claude.ai'), ($1, 'dns', 'https://dash.cloudflare.com')`, [v3Project]);
+    const logged = await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'project.link_added' and project_id = $1`, [v3Project]);
+    assert.equal(logged.n, 2);
+    await db.query(`insert into project_references (project_id, title, url, category) values ($1, 'Dribbble', 'https://dribbble.com/x', 'dribbble')`, [v3Project]);
+    await db.query(`insert into project_approvals (project_id, title, kind) values ($1, 'x', 'feature')`, [v3Project]);
+    const a = await one<{ id: string }>(`insert into social_albums (title) values ('רילס') returning id`);
+    await db.query(`insert into files (storage_path, original_name, mime_type, size_bytes, album_id, album_section, category, caption) values ('social/r.mp4', 'r.mp4', 'video/mp4', 10, $1, 'reels', 'social', 'לפני ואחרי')`, [a.id]);
+    await rejects(`insert into files (storage_path, original_name, mime_type, size_bytes, album_section) values ('social/y.mp4', 'y.mp4', 'video/mp4', 1, 'nope')`, [], /check constraint/);
+    await db.query(`insert into portfolio_items (title, services, is_featured, client_display_name) values ('GOOM', '{"עיצוב","פיתוח"}', true, 'GOOM')`);
+  });
+
+  await test("v3 notification log: private per user, written by the server only", async () => {
+    await as("service_role");
+    await db.query(`insert into notification_log (user_id, kind, day, title, body) values ($1, 'morning_summary', '2026-09-29', 'בוקר טוב', 'x'), ($2, 'morning_summary', '2026-09-29', 'בוקר טוב', 'y')`, [OWNER, SECOND]);
+    await rejects(`insert into notification_log (user_id, kind, day) values ($1, 'morning_summary', '2026-09-29')`, [OWNER], /duplicate key/);
+    await as("authenticated", OWNER);
+    const mine = await db.query<{ body: string }>(`select body from notification_log`);
+    assert.deepEqual(mine.rows.map((r) => r.body), ["x"]);
+    await rejects(`insert into notification_log (user_id, kind, day) values ($1, 'x', '2026-09-30')`, [OWNER], /permission denied/);
+    await as("authenticated", OWNER);
+    await db.query(`insert into alert_states (key, snoozed_until) values ('inactive:x:90d', '2026-10-15')`);
+    await as("anon");
+    await rejects(`select * from alert_states`, [], /permission denied/);
+    await rejects(`select * from contract_signatures`, [], /permission denied/);
   });
 
   await test("deleting a client cascades cleanly (no FK errors from activity triggers)", async () => {
