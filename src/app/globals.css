@@ -193,5 +193,7 @@
 @media print {
   @page { size: A4; margin: 12mm 14mm; }
   body { background: #fff !important; }
+  /* Page wrappers are paper-grey on screen; a printed/PDF page is white. */
+  .bg-paper { background: #fff !important; }
   [data-sonner-toaster], nextjs-portal { display: none !important; }
 }
