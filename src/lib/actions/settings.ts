@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { notify } from "@/lib/push";
 import { profileSchema, settingsSchema } from "@/lib/validation/schemas";
 import { dbError, NOT_AUTHORIZED, parseForm, staffClient } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
@@ -39,7 +40,7 @@ export async function setMemberAccess(id: string, patch: { is_active?: boolean; 
     if (error.code === "42501") return fail("רק בעל החשבון יכול לשנות הרשאות, ואי אפשר לשנות את ההרשאות של עצמך.");
     return dbError(error, "העדכון נכשל");
   }
-  revalidatePath("/settings");
+  revalidatePath("/", "layout");
   return ok(undefined, parsed.data.is_active === undefined ? "ההרשאה עודכנה" : parsed.data.is_active ? "המשתמש הופעל" : "הגישה של המשתמש הושבתה");
 }
 
@@ -48,6 +49,7 @@ const memberSchema = z.object({
   full_name: z.string().trim().min(1, "יש להזין שם").max(120),
   password: z.string().min(10, "סיסמה זמנית של 10 תווים לפחות").max(72),
   role: z.enum(["admin", "member"]).default("admin"),
+  team_role_id: z.uuid().optional().or(z.literal("").transform(() => undefined)),
 });
 
 /** Owner adds a teammate (e.g. a business partner). The account is active immediately. */
@@ -71,9 +73,13 @@ export async function addTeamMember(fd: FormData): Promise<ActionResult<null>> {
     if (error?.message.toLowerCase().includes("already")) return fail("כבר קיים משתמש עם האימייל הזה.", { email: "קיים כבר" });
     return fail(`יצירת המשתמש נכשלה: ${error?.message ?? "שגיאה לא ידועה"}`);
   }
-  const { error: pErr } = await admin.from("profiles").update({ is_active: true, role: p.data.role, full_name: p.data.full_name }).eq("id", data.user.id);
+  const { error: pErr } = await admin
+    .from("profiles")
+    .update({ is_active: true, role: p.data.role, full_name: p.data.full_name, team_role_id: p.data.team_role_id ?? null })
+    .eq("id", data.user.id);
   if (pErr) return dbError(pErr, "המשתמש נוצר אבל ההפעלה נכשלה — הפעל אותו ידנית ברשימה");
-  revalidatePath("/settings");
+  notify("staff", "team_changes", { title: "הצטרף/ה לצוות", body: p.data.full_name, url: "/team", tag: "team" }, { actor: s.userId });
+  revalidatePath("/", "layout");
   return ok(null, `${p.data.full_name} נוסף/ה לצוות ויכול/ה להתחבר עכשיו`);
 }
 

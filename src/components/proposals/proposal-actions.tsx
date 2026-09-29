@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { PdfButton } from "@/components/ui/pdf-button";
 import { toast } from "sonner";
 import { Copy, CopyPlus, FileSignature, FolderPlus, MessageCircle, MoreHorizontal, Pencil, Printer, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,9 @@ export function ProposalActions({
   clientName,
   convertedProjectId,
   contractId,
+  pdfName,
 }: {
+  pdfName: string;
   id: string;
   status: ProposalStatus;
   link: string | null;
@@ -91,10 +94,11 @@ export function ProposalActions({
             </Link>
           </Button>
         )}
+        <PdfButton path={`/proposals/${id}`} name={pdfName} variant="secondary" label="PDF" />
         <Menu trigger={<Button variant="secondary" size="icon" aria-label="פעולות נוספות"><MoreHorizontal /></Button>}>
           {!accepted && <MenuItem onSelect={() => router.push(`/proposals/${id}/edit`)}><Pencil /> עריכה</MenuItem>}
           <MenuItem onSelect={() => act(() => duplicateProposal(id), (d) => `/proposals/${d.id}/edit`)}><CopyPlus /> שכפול</MenuItem>
-          <MenuItem onSelect={() => window.print()}><Printer /> הורדה כ-PDF / הדפסה</MenuItem>
+          <MenuItem onSelect={() => window.print()}><Printer /> הדפסה</MenuItem>
           {!accepted && (
             <>
               <MenuSeparator />

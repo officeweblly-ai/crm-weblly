@@ -4,7 +4,7 @@ import { Timeline } from "@/components/activity/timeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, DataItem, DataList } from "@/components/ui/card";
-import { EmailLink, EmptyState, Money, PhoneLink, UrlLink } from "@/components/ui/misc";
+import { EmptyState, Money } from "@/components/ui/misc";
 import { ContractFormModal, ContractList } from "@/components/contracts/contracts";
 import { FileGrid, GroupedFiles } from "@/components/files/file-list";
 import { FilesPanel } from "@/components/files/files-panel";
@@ -35,8 +35,8 @@ import {
   withThumbs,
 } from "@/lib/data/crm";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { leadSource, submissionStatus, type ProjectType } from "@/lib/domain/labels";
-import { formatDate, formatDateTime, relativeDue, timeAgo } from "@/lib/format";
+import { submissionStatus, type ProjectType } from "@/lib/domain/labels";
+import { formatDate, relativeDue, timeAgo } from "@/lib/format";
 import type { Tables, Views } from "@/lib/supabase/database.types";
 
 type Opt = { value: string; label: string; clientId: string };
@@ -144,17 +144,6 @@ export async function Overview({ clientId, client, financials }: { clientId: str
             <DataItem label="קשר אחרון">{client.last_interaction_at ? timeAgo(client.last_interaction_at) : "לא נרשם"}</DataItem>
             <DataItem label="מעקב הבא">{client.next_follow_up_date ? relativeDue(client.next_follow_up_date) : null}</DataItem>
           </DataList>
-        </Panel>
-
-        <Panel title="פרטי קשר">
-          <DataList className="sm:grid-cols-1">
-            <DataItem label="טלפון"><PhoneLink phone={client.phone} /></DataItem>
-            <DataItem label="אימייל"><EmailLink email={client.email} /></DataItem>
-            <DataItem label="אתר קיים"><UrlLink url={client.website} /></DataItem>
-            {client.source && <DataItem label="מקור">{leadSource.label(client.source)}</DataItem>}
-            <DataItem label="לקוח מאז">{formatDateTime(client.created_at)}</DataItem>
-          </DataList>
-          {client.notes && <p className="mt-4 border-t border-line pt-3 text-sm whitespace-pre-wrap text-ink-2">{client.notes}</p>}
         </Panel>
 
         {(financials?.project_count ?? 0) > 0 && (

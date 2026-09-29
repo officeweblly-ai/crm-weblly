@@ -13,10 +13,12 @@ import { paymentMethod, projectStatus, type PaymentMethod } from "@/lib/domain/l
 import { formatMoney } from "@/lib/format";
 import { first, pageRange, parsePage, PAGE_SIZE } from "@/lib/utils";
 import { ListToolbar } from "@/components/ui/list-toolbar";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "כספים" };
 
 export default async function FinancesPage({ searchParams }: PageProps<"/finances">) {
+  await requireArea("finances");
   const sp = await searchParams;
   const view = first(sp.view) === "outstanding" ? "outstanding" : "payments";
   const supabase = await createClient();

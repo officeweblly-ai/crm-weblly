@@ -18,6 +18,9 @@ import {
   Settings,
   Clapperboard,
   FileSignature,
+  Landmark,
+  Receipt,
+  UsersRound,
   Menu as MenuIcon,
   Plus,
   Search,
@@ -34,22 +37,52 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
+import type { Permission } from "@/lib/domain/permissions";
+import { NotificationBell } from "./notification-bell";
 
-export const NAV = [
-  { href: "/", label: "דשבורד", icon: Gauge },
-  { href: "/today", label: "היום", icon: Sun },
-  { href: "/leads", label: "לידים", icon: Inbox },
-  { href: "/clients", label: "לקוחות", icon: Users },
-  { href: "/projects", label: "פרויקטים", icon: FolderKanban },
-  { href: "/questionnaires", label: "שאלוני אפיון", icon: ClipboardList },
-  { href: "/proposals", label: "הצעות מחיר", icon: ReceiptText },
-  { href: "/tasks", label: "משימות", icon: ListChecks },
-  { href: "/finances", label: "כספים", icon: Wallet },
-  { href: "/files", label: "קבצים", icon: Files },
-  { href: "/social", label: "סושיאל", icon: Clapperboard },
-  { href: "/portfolio", label: "תיק עבודות", icon: BriefcaseBusiness },
-  { href: "/settings", label: "הגדרות", icon: Settings },
-] as const;
+type NavItem = { href: string; label: string; icon: typeof Gauge; area?: Permission };
+
+export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "יום עבודה",
+    items: [
+      { href: "/today", label: "היום", icon: Sun },
+      { href: "/", label: "דשבורד", icon: Gauge },
+      { href: "/tasks", label: "משימות", icon: ListChecks },
+    ],
+  },
+  {
+    label: "לקוחות ופרויקטים",
+    items: [
+      { href: "/leads", label: "לידים", icon: Inbox, area: "leads" },
+      { href: "/clients", label: "לקוחות", icon: Users },
+      { href: "/projects", label: "פרויקטים", icon: FolderKanban },
+      { href: "/questionnaires", label: "שאלוני אפיון", icon: ClipboardList },
+      { href: "/proposals", label: "הצעות מחיר", icon: ReceiptText, area: "proposals" },
+    ],
+  },
+  {
+    label: "העסק",
+    items: [
+      { href: "/finances", label: "כספים", icon: Wallet, area: "finances" },
+      { href: "/business", label: "ניהול העסק", icon: Landmark },
+      { href: "/team", label: "צוות ועובדים", icon: UsersRound },
+    ],
+  },
+  {
+    label: "תוכן",
+    items: [
+      { href: "/files", label: "קבצים", icon: Files },
+      { href: "/social", label: "סושיאל", icon: Clapperboard, area: "social" },
+      { href: "/portfolio", label: "תיק עבודות", icon: BriefcaseBusiness, area: "social" },
+    ],
+  },
+];
+
+export const NAV: NavItem[] = [...NAV_GROUPS.flatMap((g) => g.items), { href: "/settings", label: "הגדרות", icon: Settings }];
+
+export type AllowedAreas = "all" | string[];
+const allowedFor = (allowed: AllowedAreas, item: NavItem) => !item.area || allowed === "all" || allowed.includes(item.area);
 
 // Phone bottom bar: the day starts on "היום" (also the installed app's start page);
 // the dashboard and every other area live in "עוד".
@@ -67,30 +100,41 @@ function Brand({ name }: { name: string }) {
   );
 }
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({ onNavigate, allowed }: { onNavigate?: () => void; allowed: AllowedAreas }) {
   const pathname = usePathname();
+  const link = ({ href, label, icon: Icon }: NavItem) => {
+    const active = isActive(pathname, href);
+    return (
+      <li key={href}>
+        <Link
+          href={href}
+          onClick={onNavigate}
+          aria-current={active ? "page" : undefined}
+          className={cn(
+            "flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors lg:h-9",
+            active ? "bg-accent-soft text-accent-ink" : "text-ink-2 hover:bg-sunken hover:text-ink",
+          )}
+        >
+          <Icon className={cn("size-[18px] shrink-0", active ? "text-accent" : "text-ink-3")} aria-hidden />
+          {label}
+        </Link>
+      </li>
+    );
+  };
   return (
-    <ul className="flex flex-col gap-0.5">
-      {NAV.map(({ href, label, icon: Icon }) => {
-        const active = isActive(pathname, href);
+    <div className="flex flex-col gap-4">
+      {NAV_GROUPS.map((g) => {
+        const items = g.items.filter((i) => allowedFor(allowed, i));
+        if (!items.length) return null;
         return (
-          <li key={href}>
-            <Link
-              href={href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors",
-                active ? "bg-accent-soft text-accent-ink" : "text-ink-2 hover:bg-sunken hover:text-ink",
-              )}
-            >
-              <Icon className={cn("size-[18px] shrink-0", active ? "text-accent" : "text-ink-3")} aria-hidden />
-              {label}
-            </Link>
-          </li>
+          <div key={g.label}>
+            <p className="px-3 pb-1 text-[11px] font-semibold tracking-wide text-ink-3">{g.label}</p>
+            <ul className="flex flex-col gap-0.5">{items.map(link)}</ul>
+          </div>
         );
       })}
-    </ul>
+      <ul className="flex flex-col gap-0.5 border-t border-line pt-3">{link(NAV.at(-1)!)}</ul>
+    </div>
   );
 }
 
@@ -115,22 +159,23 @@ function UserBlock({ name, email }: { name: string; email: string }) {
   );
 }
 
-export function Sidebar({ businessName, userName, email }: { businessName: string; userName: string; email: string }) {
+export function Sidebar({ businessName, userName, email, allowed }: { businessName: string; userName: string; email: string; allowed: AllowedAreas }) {
   return (
     <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-line bg-surface px-3 py-4 lg:flex print:hidden">
       <div className="px-1 pb-5">
         <Brand name={businessName} />
       </div>
       <nav aria-label="ניווט ראשי" className="scrollbar-thin flex-1 overflow-y-auto">
-        <NavLinks />
+        <NavLinks allowed={allowed} />
       </nav>
       <UserBlock name={userName} email={email} />
     </aside>
   );
 }
 
-export function QuickAdd({ compact }: { compact?: boolean }) {
+export function QuickAdd({ compact, allowed }: { compact?: boolean; allowed: AllowedAreas }) {
   const router = useRouter();
+  const may = (area: Permission) => allowed === "all" || allowed.includes(area);
   return (
     <Menu
       trigger={
@@ -147,9 +192,11 @@ export function QuickAdd({ compact }: { compact?: boolean }) {
       }
     >
       <MenuLabel>יצירה מהירה</MenuLabel>
-      <MenuItem onSelect={() => router.push("/leads?new=1")}>
-        <Inbox /> ליד חדש
-      </MenuItem>
+      {may("leads") && (
+        <MenuItem onSelect={() => router.push("/leads?new=1")}>
+          <Inbox /> ליד חדש
+        </MenuItem>
+      )}
       <MenuItem onSelect={() => router.push("/clients?new=1")}>
         <UserPlus /> לקוח חדש
       </MenuItem>
@@ -160,21 +207,34 @@ export function QuickAdd({ compact }: { compact?: boolean }) {
       <MenuItem onSelect={() => router.push("/questionnaires?new=1")}>
         <Send /> שליחת שאלון אפיון
       </MenuItem>
-      <MenuItem onSelect={() => router.push("/proposals/new")}>
-        <ReceiptText /> הצעת מחיר
-      </MenuItem>
+      {may("proposals") && (
+        <MenuItem onSelect={() => router.push("/proposals/new")}>
+          <ReceiptText /> הצעת מחיר
+        </MenuItem>
+      )}
       <MenuItem onSelect={() => router.push("/tasks?new=1")}>
         <ListPlus /> משימה חדשה
       </MenuItem>
-      <MenuItem onSelect={() => router.push("/finances?new=1")}>
-        <Wallet /> רישום תשלום
-      </MenuItem>
-      <MenuItem onSelect={() => router.push("/contracts/new")}>
-        <FileSignature /> הסכם חדש
-      </MenuItem>
-      <MenuItem onSelect={() => router.push("/social?new=1")}>
-        <Clapperboard /> תיקיית סושיאל
-      </MenuItem>
+      {may("finances") && (
+        <>
+          <MenuItem onSelect={() => router.push("/finances?new=1")}>
+            <Wallet /> רישום תשלום
+          </MenuItem>
+          <MenuItem onSelect={() => router.push("/business/expenses?new=1")}>
+            <Receipt /> רישום הוצאה
+          </MenuItem>
+        </>
+      )}
+      {may("contracts") && (
+        <MenuItem onSelect={() => router.push("/contracts/new")}>
+          <FileSignature /> הסכם חדש
+        </MenuItem>
+      )}
+      {may("social") && (
+        <MenuItem onSelect={() => router.push("/social?new=1")}>
+          <Clapperboard /> תיקיית סושיאל
+        </MenuItem>
+      )}
     </Menu>
   );
 }
@@ -203,24 +263,25 @@ export function SearchBox({ className, autoFocus, onDone }: { className?: string
   );
 }
 
-export function TopBar({ businessName }: { businessName: string }) {
+export function TopBar({ businessName, allowed, unread }: { businessName: string; allowed: AllowedAreas; unread: number }) {
   const [searchOpen, setSearchOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur-sm print:hidden">
-      <div className="flex h-14 items-center gap-3 px-4 lg:h-16 lg:px-8">
+    <header className="sticky top-0 z-20 border-b border-line bg-paper/90 pt-[env(safe-area-inset-top)] backdrop-blur-sm print:hidden">
+      <div className="flex h-14 items-center gap-1 px-3 sm:gap-2 sm:px-4 lg:h-16 lg:px-8">
         <div className="lg:hidden">
           <Brand name={businessName} />
         </div>
         <SearchBox className="hidden max-w-md flex-1 lg:block" />
-        <div className="ms-auto flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="lg:hidden" aria-label="חיפוש" onClick={() => setSearchOpen((v) => !v)}>
+        <div className="ms-auto flex items-center gap-1 sm:gap-2">
+          <Button variant="ghost" size="icon" className="lg:hidden" aria-label="חיפוש" aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}>
             <Search className="size-5!" />
           </Button>
+          <NotificationBell initialUnread={unread} />
           <div className="hidden lg:block">
-            <QuickAdd />
+            <QuickAdd allowed={allowed} />
           </div>
           <div className="lg:hidden">
-            <QuickAdd compact />
+            <QuickAdd compact allowed={allowed} />
           </div>
         </div>
       </div>
@@ -234,7 +295,7 @@ export function TopBar({ businessName }: { businessName: string }) {
 }
 
 /** Phones/tablets: four primary destinations + "more" drawer with everything. */
-export function MobileNav({ businessName, userName, email }: { businessName: string; userName: string; email: string }) {
+export function MobileNav({ businessName, userName, email, allowed }: { businessName: string; userName: string; email: string; allowed: AllowedAreas }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const moreActive = !MOBILE_TABS.some((t) => isActive(pathname, t.href));
@@ -291,7 +352,7 @@ export function MobileNav({ businessName, userName, email }: { businessName: str
               </Dialog.Close>
             </div>
             <nav className="flex-1 overflow-y-auto" aria-label="כל האזורים">
-              <NavLinks onNavigate={() => setOpen(false)} />
+              <NavLinks allowed={allowed} onNavigate={() => setOpen(false)} />
             </nav>
             <UserBlock name={userName} email={email} />
           </Dialog.Content>

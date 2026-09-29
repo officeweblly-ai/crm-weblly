@@ -5,10 +5,12 @@ import { PageHeader } from "@/components/ui/misc";
 import { ProposalEditor } from "@/components/proposals/proposal-editor";
 import { projectOptions } from "@/lib/data/crm";
 import { createClient } from "@/lib/supabase/server";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "עריכת הצעת מחיר" };
 
 export default async function EditProposalPage({ params }: PageProps<"/proposals/[id]/edit">) {
+  await requireArea("proposals");
   const { id } = await params;
   const supabase = await createClient();
   const { data: p } = await supabase.from("proposals").select("*, proposal_items(kind, title, position)").eq("id", id).maybeSingle();

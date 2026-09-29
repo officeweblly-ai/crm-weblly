@@ -7,11 +7,13 @@ import { ContractEditor } from "@/components/contracts/contract-editor";
 import { clientOptions, initialContract, projectOptions } from "@/lib/data/crm";
 import { createClient } from "@/lib/supabase/server";
 import { first } from "@/lib/utils";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "הסכם חדש" };
 
 /** Step 1: pick client (and project). Step 2: edit + preview. */
 export default async function NewContractPage({ searchParams }: PageProps<"/contracts/new">) {
+  await requireArea("contracts");
   const sp = await searchParams;
   let clientId = first(sp.client);
   let projectId = first(sp.project) ?? null;
@@ -65,9 +67,42 @@ export default async function NewContractPage({ searchParams }: PageProps<"/cont
   }
 
   const projects = await projectOptions(clientId);
-  const init = await initialContract(clientId, projectId ?? (projects.length === 1 ? projects[0].value : null), proposal);
-  if (!init) notFound();
   const chosenProject = projectId ?? (projects.length === 1 ? projects[0].value : null);
+  // No proposal given: use the client's accepted proposal for this project, so price, scope and milestones carry over.
+  let autoProposalId: string | null = null;
+  if (!proposal) {
+    const supabase = await createClient();
+    let q = supabase
+      .from("proposals")
+      .select("id, price, deposit, scope, delivery_estimate, milestones, proposal_items(kind, title, position)")
+      .eq("client_id", clientId)
+      .eq("status", "accepted")
+      .order("responded_at", { ascending: false })
+      .limit(1);
+    if (chosenProject) q = q.or(`project_id.eq.${chosenProject},converted_project_id.eq.${chosenProject}`);
+    const { data: acc } = await q.maybeSingle();
+    if (acc) {
+      autoProposalId = acc.id;
+      const items = [...acc.proposal_items].sort((a, b) => a.position - b.position);
+      proposal = {
+        price: Number(acc.price),
+        deposit: Number(acc.deposit),
+        scope: acc.scope,
+        delivery_estimate: acc.delivery_estimate,
+        milestones: Array.isArray(acc.milestones) ? (acc.milestones as { label: string; amount: number | null; when: string }[]) : [],
+        included: items.filter((i) => i.kind === "included").map((i) => i.title),
+        excluded: items.filter((i) => i.kind === "excluded").map((i) => i.title),
+      };
+    }
+  }
+  const init = await initialContract(clientId, chosenProject, proposal);
+  if (!init) notFound();
+  const missing = [
+    !init.content.client.business_id && "ח.פ / ע.מ",
+    !init.content.client.address && "כתובת",
+    !init.content.client.email && "אימייל",
+    !init.content.studio.business_id && "ע.מ של הסטודיו (בהגדרות)",
+  ].filter(Boolean) as string[];
 
   return (
     <>
@@ -96,7 +131,20 @@ export default async function NewContractPage({ searchParams }: PageProps<"/cont
           ) : undefined
         }
       />
-      <ContractEditor key={chosenProject ?? "none"} clientId={clientId} projectId={chosenProject} proposalId={proposalId} initialTitle={init.title} initial={init.content} />
+      <div className="mb-4 flex flex-col gap-2 print:hidden">
+        {autoProposalId && (
+          <p className="rounded-md border border-ok/25 bg-ok-soft/60 px-3 py-2 text-sm text-ink">
+            המחיר, המקדמה, התכולה ואבני הדרך נלקחו מ<Link href={`/proposals/${autoProposalId}`} className="font-medium underline">ההצעה שהלקוח אישר</Link>.
+          </p>
+        )}
+        {missing.length > 0 && (
+          <p className="rounded-md border border-warn/25 bg-warn-soft px-3 py-2 text-sm text-warn">
+            חסרים פרטים להסכם: {missing.join(" · ")}.{" "}
+            <Link href={`/clients/${clientId}`} className="font-semibold underline">להשלמה בתיק הלקוח</Link> — או למלא ישירות בטופס.
+          </p>
+        )}
+      </div>
+      <ContractEditor key={chosenProject ?? "none"} clientId={clientId} projectId={chosenProject} proposalId={proposalId ?? autoProposalId} initialTitle={init.title} initial={init.content} />
     </>
   );
 }

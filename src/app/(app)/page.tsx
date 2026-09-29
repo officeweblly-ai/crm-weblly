@@ -37,8 +37,9 @@ function greeting() {
   return "ערב טוב";
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const viewer = await requireStaff();
+  const denied = (await searchParams).denied === "1";
   const supabase = await createClient();
   const today = todayISO();
   const week = isoDateOffset(7);
@@ -69,6 +70,11 @@ export default async function DashboardPage() {
 
   return (
     <>
+      {denied && (
+        <p role="status" className="mb-4 rounded-md border border-warn/25 bg-warn-soft px-3 py-2 text-sm text-warn">
+          התפקיד שלך{viewer.role ? ` (${viewer.role.name})` : ""} לא כולל גישה לאזור שניסית לפתוח. בעל החשבון יכול לשנות זאת ב״צוות ועובדים״.
+        </p>
+      )}
       <div className="mb-6">
         <p className="text-sm text-ink-3">
           {new Intl.DateTimeFormat("he-IL", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Jerusalem" }).format(new Date())}
@@ -200,7 +206,7 @@ export default async function DashboardPage() {
 
           <aside className="flex min-w-0 flex-col gap-5">
             <Card>
-              <CardHeader title="עומס הצוות" action={<Button asChild variant="link" size="sm"><Link href="/settings/team">צוות<ArrowLeft aria-hidden /></Link></Button>} />
+              <CardHeader title="עומס הצוות" action={<Button asChild variant="link" size="sm"><Link href="/team">צוות<ArrowLeft aria-hidden /></Link></Button>} />
               <WorkloadList rows={work.workload} colors={colors} meId={viewer.userId} />
             </Card>
             <Card>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { fromIsraelTime, isoDateOffset } from "@/lib/format";
 import { followUpSchema, interactionSchema } from "@/lib/validation/schemas";
+import { notify } from "@/lib/push";
 import { dbError, NOT_AUTHORIZED, parseForm, staffClient } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
 
@@ -49,8 +50,16 @@ export async function createFollowUp(fd: FormData): Promise<ActionResult<{ id: s
   if (!s) return NOT_AUTHORIZED;
   const p = parseForm(followUpSchema, fd);
   if (!p.success) return p.result;
-  const { data, error } = await s.supabase.from("follow_ups").insert(p.data).select("id").single();
+  const { data, error } = await s.supabase.from("follow_ups").insert(p.data).select("id, assigned_to, due_date, reason, clients(name)").single();
   if (error) return dbError(error, "יצירת המעקב נכשלה");
+  if (data.assigned_to && data.assigned_to !== s.userId) {
+    notify([data.assigned_to], "follow_up_assigned", {
+      title: "מעקב חדש בשבילך",
+      body: [data.clients?.name, data.reason, data.due_date.split("-").reverse().join("/")].filter(Boolean).join(" · "),
+      url: `/clients/${p.data.client_id}?tab=relationship`,
+      tag: "follow-up",
+    }, { actor: s.userId });
+  }
   refresh();
   return ok({ id: data.id }, "המעקב נקבע");
 }

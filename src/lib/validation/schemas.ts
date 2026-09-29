@@ -18,7 +18,13 @@ import {
   interactionKind,
   proposalStatus,
   workCategory,
+  businessType,
+  expenseCategory,
+  expenseRecurring,
+  goalMetric,
+  goalStatus,
 } from "@/lib/domain/labels";
+import { PERMISSION_KEYS } from "@/lib/domain/permissions";
 
 // ---------------------------------------------------------------------------
 // Field helpers. Form values arrive as strings (or undefined when empty).
@@ -108,6 +114,19 @@ export const clientSchema = z.object({
   source: z.enum(leadSource.values).optional().transform((v) => v ?? null),
   notes: optText(5000),
   services: optText(500),
+  company_id: text(20).regex(/^[\d\s-]*$/, "ח.פ / ע.מ — ספרות בלבד").optional().transform((v) => v || null),
+  business_type: z.enum(businessType.values).optional().transform((v) => v ?? null),
+  address: optText(300),
+  city: optText(100),
+  industry: optText(150),
+  contact_role: optText(100),
+  alt_contact_name: optText(150),
+  alt_contact_phone: optPhone,
+  alt_contact_email: optEmail,
+  retainer_amount: optMoney("ריטיינר חודשי"),
+  retainer_start: optDate,
+  commitment_end: optDate,
+  commitment_notes: optText(3000),
 });
 export type ClientInput = z.infer<typeof clientSchema>;
 
@@ -511,3 +530,56 @@ export const signatureSchema = z.object({
     .max(390000, "החתימה גדולה מדי — נסו שוב"),
   agree: z.enum(["on"], { error: "יש לאשר שקראתם את ההסכם" }),
 });
+
+// ---------------------------------------------------------------------------
+// V4 — business
+// ---------------------------------------------------------------------------
+export const teamRoleSchema = z.object({
+  name: required("שם תפקיד", 60),
+  description: optText(300),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "צבע לא תקין").default("#3346c4"),
+  permissions: z.array(z.enum(PERMISSION_KEYS)).optional().transform((v) => v ?? []),
+});
+
+export const expenseSchema = z.object({
+  spent_on: isoDate,
+  amount: money("סכום").refine((n) => n > 0, "סכום חייב להיות גדול מאפס"),
+  vat_included: z.enum(["1", "0"]).optional().transform((v) => v !== "0"),
+  category: z.enum(expenseCategory.values),
+  vendor: optText(150),
+  description: required("תיאור", 300),
+  payment_method: z.enum(paymentMethod.values).optional().transform((v) => v ?? null),
+  recurring: z.enum(expenseRecurring.values).default("none"),
+  ended_on: optDate,
+  paid_by: optUuid,
+  project_id: optUuid,
+  notes: optText(2000),
+});
+
+export const strategySchema = z.object({
+  vision: optText(3000),
+  target_audience: optText(3000),
+  offering: optText(3000),
+  pricing: optText(3000),
+  channels: optText(3000),
+  strengths: optText(3000),
+  weaknesses: optText(3000),
+  opportunities: optText(3000),
+  threats: optText(3000),
+  focus: optText(3000),
+  monthly_revenue_target: optMoney("יעד הכנסות חודשי"),
+});
+
+export const goalSchema = z
+  .object({
+    title: required("שם היעד", 200),
+    metric: z.enum(goalMetric.values),
+    target: money("יעד").refine((n) => n > 0, "היעד חייב להיות גדול מאפס"),
+    manual_value: optMoney("ערך נוכחי").transform((v) => v ?? 0),
+    period_start: isoDate,
+    period_end: isoDate,
+    owner_id: optUuid,
+    status: z.enum(goalStatus.values).default("active"),
+    notes: optText(2000),
+  })
+  .refine((g) => g.period_end >= g.period_start, { message: "סוף התקופה לפני ההתחלה", path: ["period_end"] });

@@ -10,6 +10,7 @@ import { leadSource, leadStatus, projectType } from "@/lib/domain/labels";
 import { daysUntil, formatDate, formatPhone, relativeDue } from "@/lib/format";
 import { first, parsePage } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "לידים" };
 
@@ -20,6 +21,7 @@ function FollowUp({ date, closed }: { date: string | null; closed: boolean }) {
 }
 
 export default async function LeadsPage({ searchParams }: PageProps<"/leads">) {
+  await requireArea("leads");
   const sp = await searchParams;
   const filters = { q: first(sp.q), status: first(sp.status), source: first(sp.source), sort: first(sp.sort), page: parsePage(sp.page) };
   const { rows, total, pageSize } = await listLeads(filters);

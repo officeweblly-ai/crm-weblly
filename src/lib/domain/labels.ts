@@ -345,3 +345,62 @@ export const proposalStatus = options<ProposalStatus>([
   { value: "rejected", label: "נדחתה", tone: "danger" },
   { value: "expired", label: "פג תוקף", tone: "neutral" },
 ]);
+
+// ---------------------------------------------------------------------------
+// V4 — business: client identity, expenses, goals, partner agreement
+// ---------------------------------------------------------------------------
+export type BusinessType = "licensed" | "exempt" | "company" | "nonprofit" | "other";
+export const businessType = options<BusinessType>([
+  { value: "licensed", label: "עוסק מורשה" },
+  { value: "exempt", label: "עוסק פטור" },
+  { value: "company", label: "חברה בע״מ" },
+  { value: "nonprofit", label: "עמותה / מלכ״ר" },
+  { value: "other", label: "אחר" },
+]);
+
+export type ExpenseCategory =
+  | "software" | "hosting" | "marketing" | "equipment" | "freelancers" | "office"
+  | "education" | "travel" | "taxes" | "accounting" | "other";
+export const expenseCategory = options<ExpenseCategory>([
+  { value: "software", label: "תוכנות ומנויים", tone: "accent" },
+  { value: "hosting", label: "אחסון ודומיינים", tone: "info" },
+  { value: "marketing", label: "שיווק ופרסום", tone: "warn" },
+  { value: "freelancers", label: "פרילנסרים וקבלני משנה", tone: "accent" },
+  { value: "equipment", label: "ציוד", tone: "neutral" },
+  { value: "office", label: "משרד", tone: "neutral" },
+  { value: "education", label: "לימודים והשתלמויות", tone: "info" },
+  { value: "travel", label: "נסיעות", tone: "neutral" },
+  { value: "accounting", label: "הנהלת חשבונות", tone: "neutral" },
+  { value: "taxes", label: "מסים ואגרות", tone: "danger" },
+  { value: "other", label: "אחר", tone: "neutral" },
+]);
+
+export type ExpenseRecurring = "none" | "monthly" | "yearly";
+export const expenseRecurring = options<ExpenseRecurring>([
+  { value: "none", label: "חד־פעמי" },
+  { value: "monthly", label: "חודשי" },
+  { value: "yearly", label: "שנתי" },
+]);
+
+export type GoalMetric = "revenue" | "new_clients" | "projects_completed" | "proposals_accepted" | "custom";
+export const goalMetric = options<GoalMetric>([
+  { value: "revenue", label: "הכנסות (₪) — נמדד מהתשלומים" },
+  { value: "new_clients", label: "לקוחות חדשים — נמדד אוטומטית" },
+  { value: "projects_completed", label: "פרויקטים שהסתיימו — נמדד אוטומטית" },
+  { value: "proposals_accepted", label: "הצעות מחיר שאושרו — נמדד אוטומטית" },
+  { value: "custom", label: "אחר — מעדכנים ידנית" },
+]);
+
+export type GoalStatus = "active" | "achieved" | "dropped";
+export const goalStatus = options<GoalStatus>([
+  { value: "active", label: "פעיל", tone: "accent" },
+  { value: "achieved", label: "הושג", tone: "ok" },
+  { value: "dropped", label: "נעצר", tone: "neutral" },
+]);
+
+export type PartnerAgreementStatus = "draft" | "signing" | "signed";
+export const partnerAgreementStatus = options<PartnerAgreementStatus>([
+  { value: "draft", label: "טיוטה", tone: "neutral" },
+  { value: "signing", label: "בחתימה", tone: "warn" },
+  { value: "signed", label: "נחתם על ידי כולם", tone: "ok" },
+]);

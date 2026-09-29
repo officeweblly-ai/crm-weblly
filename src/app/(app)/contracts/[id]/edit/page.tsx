@@ -5,10 +5,12 @@ import { PageHeader } from "@/components/ui/misc";
 import { ContractEditor } from "@/components/contracts/contract-editor";
 import { contractContentSchema } from "@/lib/domain/contracts";
 import { createClient } from "@/lib/supabase/server";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "עריכת הסכם" };
 
 export default async function EditContractPage({ params }: PageProps<"/contracts/[id]/edit">) {
+  await requireArea("contracts");
   const { id } = await params;
   const supabase = await createClient();
   const { data: c } = await supabase.from("contracts").select("*").eq("id", id).maybeSingle();

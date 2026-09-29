@@ -152,13 +152,47 @@ Patterns to follow:
   Album page shows one section at a time (chips) to keep the phone screen calm.
 - **Mobile nav:** the bottom bar is now היום / לקוחות / פרויקטים / משימות / עוד (dashboard moved into "עוד").
 
+
+### V4 — running the business (2026-09-30) — additive
+- **Client file:** `clients` gained ח.פ (`company_id`), `business_type`, `address`/`city`, `industry`, `contact_role`, a second
+  contact (`alt_contact_*`) and the commitment (`retainer_amount`, `retainer_start`, `commitment_end`, `commitment_notes`).
+  The client page now opens with the full card (`components/clients/client-profile.tsx`: contact · business · commitment,
+  a "missing details" banner) and only then the tabs. Empty facts are not rendered as rows of dashes.
+- **Questionnaire → client file:** more `maps_to` targets (see `CLIENT_FIELD_MAPPINGS`). `finalize_questionnaire` fills only
+  EMPTY client fields and stores differing values in `form_submissions.client_suggestions`; the client page shows them with
+  "update / keep" (`resolveClientSuggestions`). `npm run templates:add-business` (idempotent) added ח.פ, address, role,
+  email and an extra contact to the first step of every template (already run on production).
+- **Questionnaire UX (client side):** welcome screen lists the steps; short fields sit two per row on desktop; the continue
+  button names the next step; completed steps are clickable in the progress bar; a **review screen** before sending
+  (per-step summary, missing required answers jump back).
+- **Team & roles** (`/team`, `/settings/team` redirects): custom `team_roles` with `permissions` (keys in
+  `src/lib/domain/permissions.ts`). Owner = everything; no role = everything; otherwise only listed areas. Enforced by the nav
+  (`allowedFor`), page guards (`requireArea`) and RLS on the V4 tables (`has_permission()`). Only the owner assigns roles
+  (trigger `profiles_role_guard`). Existing tables (payments, contracts…) are still staff-wide in RLS.
+- **Notifications center:** `notifications` table (server writes, each person reads/marks their own). `notify()` now writes
+  the bell row for every recipient (never the actor) and then pushes per preferences. New events: lead, client, task
+  completed, proposal viewed, follow-up assigned, project stage, expense, partner agreement, team changes. Bell in the top bar
+  (`notification-bell.tsx`, polls the count every 60s while visible) + `/notifications`.
+- **Business area** (`/business`): overview (month KPIs, 6-month income vs expenses chart — `profit-chart.tsx`, colors
+  validated with the dataviz validator; goals; focus), `/business/strategy` (single-row `business_strategy` + goals),
+  `/business/expenses` (`business_expenses`; monthly/yearly recurring counted by `src/lib/domain/expenses.ts`, unit-tested),
+  `/business/partners` (partner agreement: `partner_agreements` JSON content, default text in `src/lib/domain/partners.ts`,
+  each partner signs in-app via `sign_partner_agreement()`; editing after a signature bumps the version).
+- **Real PDF download:** `/api/pdf?path=…` renders an allow-listed page in headless Chrome (`puppeteer-core` +
+  `@sparticuz/chromium` on Vercel, local Chrome in dev) and returns an A4 PDF. `PdfButton` (share sheet on iPhone, download
+  elsewhere, print fallback). Staff paths re-check auth + area; `/o/` and `/s/` token pages are public. `/api/pdf` is in the
+  proxy's public prefixes because the route does its own checks.
+- **Contracts:** client ח.פ/address/role flow into new agreements; the client's accepted proposal for the project is picked
+  up automatically; a banner lists missing details.
+- **Nav:** sidebar/drawer grouped (יום עבודה · לקוחות ופרויקטים · העסק · תוכן), filtered by role; quick-add has "הוצאה".
+
 ## 5. Environment & database
 
 `.env.local` (never commit): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
 `NEXT_PUBLIC_SITE_URL`, `SUPABASE_DB_URL` (direct/pooler connection string, only for scripts).
 
 Migrations are tracked in `internal.app_migrations`. Apply new ones with `npm run db:migrate`.
-Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications, 1000 v3_enums, 1100 v3_daily_workflow.
+Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications, 1000 v3_enums, 1100 v3_daily_workflow, 1200 v4_business.
 **Network note:** the direct host `db.<ref>.supabase.co` is IPv6-only and does not resolve on IPv4-only networks
 (`getaddrinfo ENOTFOUND`). Use the Session pooler instead: user `postgres.<ref>`, host
 `aws-0-ap-northeast-1.pooler.supabase.com`, port 5432 (same password) — e.g. `SUPABASE_DB_URL=… npm run db:migrate`.

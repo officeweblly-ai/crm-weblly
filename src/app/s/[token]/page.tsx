@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Clock, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ContractDocument } from "@/components/contracts/contract-document";
-import { PrintButton } from "@/components/contracts/print-button";
+import { PdfButton } from "@/components/ui/pdf-button";
 import { InvalidLink } from "@/components/public/invalid-link";
 import { SignForm } from "@/components/public/sign-form";
 import { getPublicContract } from "@/lib/data/public";
@@ -55,7 +55,7 @@ export default async function SignPage({ params }: PageProps<"/s/[token]">) {
               נחתם ע״י {data.signature.name} · {formatDateTime(data.signature.signedAt)}. אפשר לשמור עותק:
             </p>
             <div className="mt-3">
-              <PrintButton label="שמירת עותק כ-PDF" />
+              <PdfButton path={`/s/${token}`} name="הסכם חתום" label="שמירת עותק PDF" />
             </div>
           </section>
         ) : (

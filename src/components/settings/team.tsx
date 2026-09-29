@@ -124,7 +124,7 @@ function MemberModal({ member, trigger, open: openProp, onOpenChange }: OpenProp
   );
 }
 
-export function MemberCard({ member, responsibilities, canEdit, isMe }: { member: Member; responsibilities: Responsibility[]; canEdit: boolean; isMe: boolean }) {
+export function MemberCard({ member, responsibilities, canEdit, isMe, footer }: { member: Member; responsibilities: Responsibility[]; canEdit: boolean; isMe: boolean; footer?: ReactNode }) {
   const [editing, setEditing] = useState(false);
   const color = member.avatar_color ?? undefined;
   const mine = responsibilities.filter((r) => r.assigned_to === member.id && r.is_active);
@@ -167,6 +167,7 @@ export function MemberCard({ member, responsibilities, canEdit, isMe }: { member
           <span className="text-xs text-ink-3">עוד לא הוגדרו תחומי אחריות</span>
         )}
       </div>
+      {footer}
       {canEdit && <MemberModal member={member} open={editing} onOpenChange={setEditing} />}
     </li>
   );

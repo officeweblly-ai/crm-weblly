@@ -4,7 +4,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { daysSummary } from "@/lib/domain/labels";
 import { PageHeader } from "@/components/ui/misc";
 import { NotificationSettings } from "@/components/shell/push-setup";
-import { AddMemberForm, ClearDemoButton, PasswordForm, ProfileForm, TeamList, WorkspaceForm } from "@/components/settings/settings-forms";
+import { ClearDemoButton, PasswordForm, ProfileForm, WorkspaceForm } from "@/components/settings/settings-forms";
 import { requireStaff } from "@/lib/auth";
 import { workspaceSettings } from "@/lib/data/crm";
 import { createClient } from "@/lib/supabase/server";
@@ -33,13 +33,13 @@ export default async function SettingsPage() {
           <CardHeader title="הפרופיל שלי" />
           <CardBody className="flex flex-col gap-4"><ProfileForm profile={viewer.profile} /><PasswordForm /></CardBody>
         </Card>
-        <Link href="/settings/team" className="group flex items-center gap-4 rounded-lg border border-line bg-surface px-4 py-4 shadow-1 transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-2 sm:px-5">
+        <Link href="/team" className="group flex items-center gap-4 rounded-lg border border-line bg-surface px-4 py-4 shadow-1 transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-2 sm:px-5">
           <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent" aria-hidden>
             <UsersRound className="size-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block font-semibold text-ink">צוות ותחומי אחריות</span>
-            <span className="block text-sm text-ink-3">מי אחראי על מה, ימי עבודה ושעת סיכום הבוקר של כל שותף</span>
+            <span className="block font-semibold text-ink">צוות, תפקידים והרשאות</span>
+            <span className="block text-sm text-ink-3">{(members ?? []).filter((m) => m.is_active).length} אנשים פעילים · הוספת עובדים, תפקידים, תחומי אחריות ועומס</span>
           </span>
           <ChevronLeft className="size-5 shrink-0 text-ink-3 transition-transform group-hover:-translate-x-0.5" aria-hidden />
         </Link>
@@ -50,13 +50,6 @@ export default async function SettingsPage() {
               prefs={(viewer.profile.notify_prefs ?? {}) as Record<string, unknown>}
               morningLabel={`סיכום הבוקר שלך: ${viewer.profile.morning_time.slice(0, 5)}, ימים ${daysSummary(viewer.profile.working_days)} (משנים ב״צוות ותחומי אחריות״).`}
             />
-          </CardBody>
-        </Card>
-        <Card>
-          <CardHeader title="צוות" description="כל מי שברשימה עובד על אותם נתונים בזמן אמת — לקוחות, פרויקטים, קבצים ותשלומים. בלי להעביר דברים בוואטסאפ." />
-          <CardBody className="flex flex-col gap-4">
-            <TeamList members={members ?? []} meId={viewer.userId} isOwner={isOwner} />
-            {isOwner && <AddMemberForm />}
           </CardBody>
         </Card>
         {isOwner && (demoCount ?? 0) > 0 && (

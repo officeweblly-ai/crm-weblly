@@ -120,6 +120,178 @@ export type Database = {
           { foreignKeyName: "approval_feedback_approval_id_fkey"; columns: ["approval_id"]; isOneToOne: false; referencedRelation: "project_approvals"; referencedColumns: ["id"] },
         ];
       };
+      business_expenses: {
+        Row: {
+          id: string;
+          spent_on: string;
+          amount: number;
+          vat_included: boolean;
+          category: string;
+          vendor: string | null;
+          description: string;
+          payment_method: Database["public"]["Enums"]["payment_method"] | null;
+          recurring: string;
+          ended_on: string | null;
+          paid_by: string | null;
+          project_id: string | null;
+          file_id: string | null;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          spent_on?: string;
+          amount: number;
+          vat_included?: boolean;
+          category?: string;
+          vendor?: string | null;
+          description: string;
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null;
+          recurring?: string;
+          ended_on?: string | null;
+          paid_by?: string | null;
+          project_id?: string | null;
+          file_id?: string | null;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          spent_on?: string;
+          amount?: number;
+          vat_included?: boolean;
+          category?: string;
+          vendor?: string | null;
+          description?: string;
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null;
+          recurring?: string;
+          ended_on?: string | null;
+          paid_by?: string | null;
+          project_id?: string | null;
+          file_id?: string | null;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "business_expenses_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "business_expenses_file_id_fkey"; columns: ["file_id"]; isOneToOne: false; referencedRelation: "files"; referencedColumns: ["id"] },
+          { foreignKeyName: "business_expenses_paid_by_fkey"; columns: ["paid_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "business_expenses_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+        ];
+      };
+      business_goals: {
+        Row: {
+          id: string;
+          title: string;
+          metric: string;
+          target: number;
+          manual_value: number;
+          period_start: string;
+          period_end: string;
+          owner_id: string | null;
+          status: string;
+          notes: string | null;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          metric?: string;
+          target: number;
+          manual_value?: number;
+          period_start: string;
+          period_end: string;
+          owner_id?: string | null;
+          status?: string;
+          notes?: string | null;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          metric?: string;
+          target?: number;
+          manual_value?: number;
+          period_start?: string;
+          period_end?: string;
+          owner_id?: string | null;
+          status?: string;
+          notes?: string | null;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "business_goals_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "business_goals_owner_id_fkey"; columns: ["owner_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      business_strategy: {
+        Row: {
+          id: boolean;
+          vision: string | null;
+          target_audience: string | null;
+          offering: string | null;
+          pricing: string | null;
+          channels: string | null;
+          strengths: string | null;
+          weaknesses: string | null;
+          opportunities: string | null;
+          threats: string | null;
+          focus: string | null;
+          monthly_revenue_target: number | null;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          vision?: string | null;
+          target_audience?: string | null;
+          offering?: string | null;
+          pricing?: string | null;
+          channels?: string | null;
+          strengths?: string | null;
+          weaknesses?: string | null;
+          opportunities?: string | null;
+          threats?: string | null;
+          focus?: string | null;
+          monthly_revenue_target?: number | null;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          id?: boolean;
+          vision?: string | null;
+          target_audience?: string | null;
+          offering?: string | null;
+          pricing?: string | null;
+          channels?: string | null;
+          strengths?: string | null;
+          weaknesses?: string | null;
+          opportunities?: string | null;
+          threats?: string | null;
+          focus?: string | null;
+          monthly_revenue_target?: number | null;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "business_strategy_updated_by_fkey"; columns: ["updated_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
       client_interactions: {
         Row: {
           id: string;
@@ -189,6 +361,19 @@ export type Database = {
           last_interaction_at: string | null;
           next_follow_up_date: string | null;
           services: string | null;
+          company_id: string | null;
+          business_type: string | null;
+          address: string | null;
+          city: string | null;
+          industry: string | null;
+          contact_role: string | null;
+          alt_contact_name: string | null;
+          alt_contact_phone: string | null;
+          alt_contact_email: string | null;
+          retainer_amount: number | null;
+          retainer_start: string | null;
+          commitment_end: string | null;
+          commitment_notes: string | null;
         };
         Insert: {
           id?: string;
@@ -209,6 +394,19 @@ export type Database = {
           last_interaction_at?: string | null;
           next_follow_up_date?: string | null;
           services?: string | null;
+          company_id?: string | null;
+          business_type?: string | null;
+          address?: string | null;
+          city?: string | null;
+          industry?: string | null;
+          contact_role?: string | null;
+          alt_contact_name?: string | null;
+          alt_contact_phone?: string | null;
+          alt_contact_email?: string | null;
+          retainer_amount?: number | null;
+          retainer_start?: string | null;
+          commitment_end?: string | null;
+          commitment_notes?: string | null;
         };
         Update: {
           id?: string;
@@ -229,6 +427,19 @@ export type Database = {
           last_interaction_at?: string | null;
           next_follow_up_date?: string | null;
           services?: string | null;
+          company_id?: string | null;
+          business_type?: string | null;
+          address?: string | null;
+          city?: string | null;
+          industry?: string | null;
+          contact_role?: string | null;
+          alt_contact_name?: string | null;
+          alt_contact_phone?: string | null;
+          alt_contact_email?: string | null;
+          retainer_amount?: number | null;
+          retainer_start?: string | null;
+          commitment_end?: string | null;
+          commitment_notes?: string | null;
         };
         Relationships: [
           { foreignKeyName: "clients_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -682,6 +893,7 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          client_suggestions: Json;
         };
         Insert: {
           id?: string;
@@ -704,6 +916,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          client_suggestions?: Json;
         };
         Update: {
           id?: string;
@@ -726,6 +939,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          client_suggestions?: Json;
         };
         Relationships: [
           { foreignKeyName: "form_submissions_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
@@ -929,6 +1143,119 @@ export type Database = {
           { foreignKeyName: "notification_log_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          kind: string;
+          title: string;
+          body: string;
+          url: string | null;
+          actor_id: string | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          kind: string;
+          title: string;
+          body?: string;
+          url?: string | null;
+          actor_id?: string | null;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          kind?: string;
+          title?: string;
+          body?: string;
+          url?: string | null;
+          actor_id?: string | null;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "notifications_actor_id_fkey"; columns: ["actor_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "notifications_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      partner_agreement_signatures: {
+        Row: {
+          id: string;
+          agreement_id: string;
+          version: number;
+          user_id: string;
+          signer_name: string;
+          id_number: string | null;
+          signature: string;
+          content_hash: string;
+          signed_at: string;
+        };
+        Insert: {
+          id?: string;
+          agreement_id: string;
+          version: number;
+          user_id: string;
+          signer_name: string;
+          id_number?: string | null;
+          signature: string;
+          content_hash: string;
+          signed_at?: string;
+        };
+        Update: {
+          id?: string;
+          agreement_id?: string;
+          version?: number;
+          user_id?: string;
+          signer_name?: string;
+          id_number?: string | null;
+          signature?: string;
+          content_hash?: string;
+          signed_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "partner_agreement_signatures_agreement_id_fkey"; columns: ["agreement_id"]; isOneToOne: false; referencedRelation: "partner_agreements"; referencedColumns: ["id"] },
+          { foreignKeyName: "partner_agreement_signatures_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      partner_agreements: {
+        Row: {
+          id: string;
+          title: string;
+          content: Json;
+          version: number;
+          status: string;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          content: Json;
+          version?: number;
+          status?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          content?: Json;
+          version?: number;
+          status?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "partner_agreements_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
       payments: {
         Row: {
           id: string;
@@ -1094,6 +1421,7 @@ export type Database = {
           work_start: string | null;
           work_end: string | null;
           morning_time: string;
+          team_role_id: string | null;
         };
         Insert: {
           id: string;
@@ -1111,6 +1439,7 @@ export type Database = {
           work_start?: string | null;
           work_end?: string | null;
           morning_time?: string;
+          team_role_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1128,8 +1457,11 @@ export type Database = {
           work_start?: string | null;
           work_end?: string | null;
           morning_time?: string;
+          team_role_id?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          { foreignKeyName: "profiles_team_role_id_fkey"; columns: ["team_role_id"]; isOneToOne: false; referencedRelation: "team_roles"; referencedColumns: ["id"] },
+        ];
       };
       project_ai_handoff_files: {
         Row: {
@@ -1776,6 +2108,39 @@ export type Database = {
           { foreignKeyName: "team_responsibilities_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
+      team_roles: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          color: string;
+          permissions: string[];
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string | null;
+          color?: string;
+          permissions?: string[];
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string | null;
+          color?: string;
+          permissions?: string[];
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       workspace_settings: {
         Row: {
           id: boolean;
@@ -1863,6 +2228,8 @@ export type Database = {
       duplicate_form_template: { Args: { p_template_id: string; p_name?: string }; Returns: string };
       finalize_questionnaire: { Args: { p_submission_id: string; p_answers: Json; p_client: Json }; Returns: Json };
       format_ils: { Args: { amount: number }; Returns: string };
+      goal_actual: { Args: { p_goal: string }; Returns: number };
+      has_permission: { Args: { p_area: string }; Returns: boolean };
       interaction_kind_label: { Args: { k: string }; Returns: string };
       is_owner: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_staff: { Args: Record<PropertyKey, never>; Returns: boolean };
@@ -1876,6 +2243,7 @@ export type Database = {
       respond_to_proposal: { Args: { p_token: string; p_decision: string; p_name?: string; p_note?: string }; Returns: Json };
       responsible_for: { Args: { p_category: string }; Returns: string };
       sign_contract: { Args: { p_token: string; p_version: number; p_hash: string; p_name: string; p_id_number: string; p_email: string; p_signature: string; p_ip?: string; p_user_agent?: string }; Returns: Json };
+      sign_partner_agreement: { Args: { p_id: string; p_version: number; p_name: string; p_id_number: string; p_signature: string; p_hash: string }; Returns: Json };
       task_status_label: { Args: { s: Database["public"]["Enums"]["task_status"] }; Returns: string };
       work_category_label: { Args: { c: string }; Returns: string };
     };

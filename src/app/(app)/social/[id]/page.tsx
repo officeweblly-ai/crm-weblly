@@ -10,6 +10,7 @@ import { clientOptions, getAlbum, projectOptions } from "@/lib/data/crm";
 import { albumSection, type AlbumSection } from "@/lib/domain/labels";
 import { ACCEPT_MEDIA } from "@/lib/storage";
 import { cn, first } from "@/lib/utils";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "תיקיית סושיאל" };
 
@@ -23,6 +24,7 @@ const HINTS: Record<AlbumSection, string> = {
 };
 
 export default async function AlbumPage({ params, searchParams }: PageProps<"/social/[id]">) {
+  await requireArea("social");
   const { id } = await params;
   const sp = await searchParams;
   const [data, clients, projects] = await Promise.all([getAlbum(id), clientOptions(), projectOptions()]);

@@ -634,6 +634,88 @@ async function main() {
     await rejects(`select * from contract_signatures`, [], /permission denied/);
   });
 
+  await test("v4 questionnaire fills only empty client fields; differences become suggestions", async () => {
+    await as("authenticated", OWNER);
+    const c = await one<{ id: string }>(`insert into clients (name, email, city) values ('רון', 'ron@example.com', 'חיפה') returning id`);
+    const s = await one<{ id: string }>(
+      `insert into form_submissions (client_id, title, token, form_snapshot) values ($1, 'אפיון', $2, '{"sections": []}') returning id`,
+      [c.id, "v".repeat(43)],
+    );
+    await as("service_role");
+    const r = await one<{ finalize_questionnaire: { filled_fields: string[]; suggestions: Record<string, string> } }>(
+      `select finalize_questionnaire($1, '[]'::jsonb, $2::jsonb)`,
+      [s.id, JSON.stringify({ company_id: "515151515", address: "הרצל 1", city: "תל אביב", email: "RON@example.com", alt_contact_name: "מיכל" })],
+    );
+    assert.deepEqual(r.finalize_questionnaire.filled_fields.sort(), ["address", "alt_contact_name", "company_id"]);
+    assert.deepEqual(r.finalize_questionnaire.suggestions, { city: "תל אביב" });
+    const after = await one<{ company_id: string; city: string; address: string }>(`select company_id, city, address from clients where id = $1`, [c.id]);
+    assert.deepEqual(after, { company_id: "515151515", city: "חיפה", address: "הרצל 1" });
+    const sub = await one<{ client_suggestions: Record<string, string> }>(`select client_suggestions from form_submissions where id = $1`, [s.id]);
+    assert.deepEqual(sub.client_suggestions, { city: "תל אביב" });
+  });
+
+  await test("v4 roles: owner assigns; a role limits sensitive areas", async () => {
+    await as("authenticated", OWNER);
+    const role = await one<{ id: string }>(`insert into team_roles (name, permissions) values ('מעצב', '{proposals}') returning id`);
+    await db.query(`insert into business_expenses (description, amount, category) values ('Figma', 60, 'software')`);
+    await as("authenticated", SECOND);
+    await rejects(`insert into team_roles (name) values ('x')`, [], /row-level security/);
+    await rejects(`update profiles set team_role_id = $1 where id = $2`, [role.id, SECOND], /owner/);
+    // No role yet → full access.
+    let n = await one<{ n: number }>(`select count(*)::int n from business_expenses`);
+    assert.equal(n.n, 1);
+    await as("authenticated", OWNER);
+    await db.query(`update profiles set team_role_id = $1 where id = $2`, [role.id, SECOND]);
+    await as("authenticated", SECOND);
+    n = await one<{ n: number }>(`select count(*)::int n from business_expenses`);
+    assert.equal(n.n, 0);
+    await rejects(`insert into business_expenses (description, amount) values ('x', 1)`, [], /row-level security/);
+    const perm = await one<{ a: boolean; b: boolean }>(`select has_permission('proposals') a, has_permission('finances') b`);
+    assert.deepEqual(perm, { a: true, b: false });
+    await as("authenticated", OWNER);
+    await db.query(`update profiles set team_role_id = null where id = $1`, [SECOND]);
+  });
+
+  await test("v4 notifications: private, read-only except read_at", async () => {
+    await as("service_role");
+    await db.query(`insert into notifications (user_id, kind, title) values ($1, 'payment_added', 'תשלום'), ($2, 'payment_added', 'תשלום')`, [OWNER, SECOND]);
+    await as("authenticated", SECOND);
+    const mine = await db.query<{ id: string }>(`select id from notifications`);
+    assert.equal(mine.rows.length, 1);
+    await db.query(`update notifications set read_at = now() where id = $1`, [mine.rows[0].id]);
+    await rejects(`update notifications set title = 'x'`, [], /permission denied/);
+    await rejects(`insert into notifications (user_id, kind, title) values ($1, 'x', 'x')`, [SECOND], /permission denied/);
+  });
+
+  await test("v4 goals are measured from real data", async () => {
+    await as("authenticated", OWNER);
+    const g = await one<{ id: string }>(`insert into business_goals (title, metric, target, period_start, period_end) values ('הכנסות', 'revenue', 10000, '2000-01-01', '2100-01-01') returning id`);
+    const total = await one<{ s: string }>(`select coalesce(sum(amount), 0) s from payments`);
+    const actual = await one<{ v: string }>(`select goal_actual($1) v`, [g.id]);
+    assert.equal(Number(actual.v), Number(total.s));
+    await rejects(`insert into business_goals (title, target, period_start, period_end) values ('x', 1, '2026-02-01', '2026-01-01')`, [], /check constraint/);
+  });
+
+  await test("v4 partner agreement: each partner signs; editing starts a new version", async () => {
+    await as("authenticated", OWNER);
+    const content = JSON.stringify({ partners: [{ user_id: OWNER }, { user_id: SECOND }], clauses: [] });
+    const a = await one<{ id: string }>(`insert into partner_agreements (title, content) values ('הסכם שותפות', $1::jsonb) returning id`, [content]);
+    const png = "data:image/png;base64,AAAA";
+    const r1 = await one<{ sign_partner_agreement: { signed: number; needed: number } }>(`select sign_partner_agreement($1, 1, 'ינאי', null, $2, 'h')`, [a.id, png]);
+    assert.deepEqual(r1.sign_partner_agreement, { signed: 1, needed: 2 });
+    await rejects(`select sign_partner_agreement($1, 2, 'ינאי', null, $2, 'h')`, [a.id, png], /changed/);
+    await as("authenticated", SECOND);
+    await db.query(`select sign_partner_agreement($1, 1, 'שותף', null, $2, 'h')`, [a.id, png]);
+    let s = await one<{ status: string; version: number }>(`select status, version from partner_agreements where id = $1`, [a.id]);
+    assert.deepEqual(s, { status: "signed", version: 1 });
+    await rejects(`insert into partner_agreement_signatures (agreement_id, version, user_id, signer_name, signature, content_hash) values ($1, 1, $2, 'xx', $3, 'h')`, [a.id, SECOND, png], /permission denied/);
+    await db.query(`update partner_agreements set content = jsonb_set(content, '{clauses}', '[{"title": "x"}]') where id = $1`, [a.id]);
+    s = await one<{ status: string; version: number }>(`select status, version from partner_agreements where id = $1`, [a.id]);
+    assert.deepEqual(s, { status: "draft", version: 2 });
+    await as("anon");
+    await rejects(`select * from partner_agreements`, [], /permission denied/);
+  });
+
   await test("deleting a client cascades cleanly (no FK errors from activity triggers)", async () => {
     await as("authenticated", OWNER);
     await db.query(`delete from clients where id = $1`, [clientId]);

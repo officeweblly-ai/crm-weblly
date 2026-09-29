@@ -89,3 +89,32 @@ export function FormError({ message }: { message?: string | null }) {
     </div>
   );
 }
+
+/** A titled group of fields inside a long form. Collapsible groups start closed unless they have data. */
+export function FormSection({ title, hint, collapsible, defaultOpen, children }: { title: ReactNode; hint?: ReactNode; collapsible?: boolean; defaultOpen?: boolean; children: ReactNode }) {
+  const head = (
+    <>
+      <span className="text-sm font-semibold text-ink">{title}</span>
+      {hint && <span className="mt-0.5 block text-xs font-normal text-ink-3">{hint}</span>}
+    </>
+  );
+  if (!collapsible) {
+    return (
+      <fieldset className="flex flex-col gap-4 border-t border-line pt-4 first:border-t-0 first:pt-0">
+        <legend className="float-start mb-3 w-full">{head}</legend>
+        {children}
+      </fieldset>
+    );
+  }
+  return (
+    <details open={defaultOpen} className="group border-t border-line pt-4">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">{head}</span>
+        <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-ink-3 transition-transform group-open:rotate-45" aria-hidden>
+          +
+        </span>
+      </summary>
+      <div className="mt-4 flex flex-col gap-4">{children}</div>
+    </details>
+  );
+}

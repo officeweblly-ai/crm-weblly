@@ -20,6 +20,15 @@ export const NOTIFY_EVENTS = [
   "proposal_response",
   "contract_signed",
   "payment_added",
+  "lead_created",
+  "client_created",
+  "task_completed",
+  "proposal_viewed",
+  "follow_up_assigned",
+  "expense_added",
+  "project_status",
+  "partner_agreement",
+  "team_changes",
 ] as const;
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number];
 
@@ -115,11 +124,40 @@ export async function sendPush(to: string[] | "staff", event: NotifyEvent | "tes
   return { sent };
 }
 
-/** Fire-and-forget: runs after the response; never throws into the caller. */
-export function notify(to: string[] | "staff" | (() => Promise<string[] | "staff">), event: NotifyEvent, payload: PushPayload) {
+/**
+ * In-app notifications (the bell): always written, whatever the push
+ * preferences — push is the loud copy, the bell is the record.
+ */
+export async function writeInbox(to: string[] | "staff", event: NotifyEvent, payload: PushPayload, actor?: string | null): Promise<string[]> {
+  const db = createAdminClient();
+  let q = db.from("profiles").select("id").eq("is_active", true);
+  if (to !== "staff") {
+    if (!to.length) return [];
+    q = q.in("id", to);
+  }
+  const { data } = await q;
+  const ids = (data ?? []).map((p) => p.id).filter((id) => id !== actor);
+  if (ids.length) {
+    await db.from("notifications").insert(ids.map((user_id) => ({ user_id, kind: event, title: payload.title, body: payload.body, url: payload.url, actor_id: actor ?? null })));
+  }
+  return ids;
+}
+
+/**
+ * Fire-and-forget: runs after the response; never throws into the caller.
+ * `actor` (the person who did it) is never notified about their own action.
+ */
+export function notify(
+  to: string[] | "staff" | (() => Promise<string[] | "staff">),
+  event: NotifyEvent,
+  payload: PushPayload,
+  opts: { actor?: string | null } = {},
+) {
   after(async () => {
     try {
-      await sendPush(typeof to === "function" ? await to() : to, event, payload);
+      const recipients = typeof to === "function" ? await to() : to;
+      const ids = await writeInbox(recipients, event, payload, opts.actor);
+      if (ids.length) await sendPush(ids, event, payload);
     } catch (e) {
       console.error("[push] notify failed", (e as Error).message);
     }

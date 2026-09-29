@@ -479,7 +479,14 @@ export async function initialContract(clientId: string, projectId: string | null
       email: ws?.contact_email ?? "",
       signatory: ws?.signatory_name ?? "",
     },
-    client: { name: client.name, business: client.business_name ?? "", business_id: "", address: "", phone: client.phone ?? "", email: client.email ?? "" },
+    client: {
+      name: client.contact_role ? `${client.name} (${client.contact_role})` : client.name,
+      business: client.business_name ?? "",
+      business_id: client.company_id ?? "",
+      address: [client.address, client.city].filter(Boolean).join(", "),
+      phone: client.phone ?? "",
+      email: client.email ?? "",
+    },
     project: {
       name: project?.name ?? "",
       type_label: typeLabel,

@@ -13,7 +13,7 @@ import { useFormAction } from "@/lib/use-form-action";
  * is scaled for the screen's pixel ratio so the line stays sharp on iPhone,
  * and `touch-action: none` keeps the page from scrolling while signing.
  */
-function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
+export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const dirty = useRef(false);

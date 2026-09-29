@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notify, recipientsFor } from "@/lib/push";
 import { answersSchema, type Answers, type FormSnapshot } from "@/lib/domain/forms";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
@@ -218,7 +219,16 @@ export async function getPublicProposal(token: string): Promise<PublicProposal> 
     db.from("workspace_settings").select("business_name, contact_phone, contact_email").maybeSingle(),
   ]);
   if (!pr || pr.status === "draft") return { state: "invalid" };
-  if (pr.status === "sent") await db.rpc("mark_proposal_viewed", { p_token: token });
+  if (pr.status === "sent") {
+    await db.rpc("mark_proposal_viewed", { p_token: token });
+    const who = pr.clients?.business_name || pr.clients?.name || "";
+    notify(() => recipientsFor("proposals"), "proposal_viewed", {
+      title: "הלקוח פתח את הצעת המחיר",
+      body: [who, pr.title].filter(Boolean).join(" · "),
+      url: "/proposals",
+      tag: "proposal-viewed",
+    });
+  }
   const items = [...pr.proposal_items].sort((a, b) => a.position - b.position);
   const { clients, proposal_items: _items, ...rest } = pr;
   void _items;

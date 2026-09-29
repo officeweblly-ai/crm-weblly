@@ -8,10 +8,12 @@ import { listPortfolio } from "@/lib/data/crm";
 import { portfolioStatus, type PortfolioStatus } from "@/lib/domain/labels";
 import { createClient } from "@/lib/supabase/server";
 import { first } from "@/lib/utils";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "תיק עבודות" };
 
 export default async function PortfolioPage({ searchParams }: PageProps<"/portfolio">) {
+  await requireArea("social");
   const sp = await searchParams;
   const supabase = await createClient();
   const [items, { data: projects }] = await Promise.all([

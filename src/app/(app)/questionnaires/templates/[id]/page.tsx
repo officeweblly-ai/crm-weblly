@@ -7,10 +7,12 @@ import { FormBuilder } from "@/components/questionnaires/builder";
 import { PublicLinkButton, TemplateMenu } from "@/components/questionnaires/template-controls";
 import { getTemplate } from "@/lib/data/crm";
 import { projectType } from "@/lib/domain/labels";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "בונה שאלונים" };
 
 export default async function TemplateBuilderPage({ params }: PageProps<"/questionnaires/templates/[id]">) {
+  await requireArea("questionnaires");
   const { id } = await params;
   const data = await getTemplate(id);
   if (!data) notFound();

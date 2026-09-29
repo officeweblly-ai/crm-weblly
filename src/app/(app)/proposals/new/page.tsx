@@ -10,6 +10,7 @@ import { projectType } from "@/lib/domain/labels";
 import { isoDateOffset } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { first } from "@/lib/utils";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "הצעת מחיר חדשה" };
 
@@ -17,6 +18,7 @@ const isId = (v?: string) => (v && /^[0-9a-f-]{36}$/i.test(v) ? v : undefined);
 
 /** From a questionnaire (?submission=), from a client (?client=), or pick a client first. */
 export default async function NewProposalPage({ searchParams }: PageProps<"/proposals/new">) {
+  await requireArea("proposals");
   const sp = await searchParams;
   const submissionId = isId(first(sp.submission));
   let clientId = isId(first(sp.client));

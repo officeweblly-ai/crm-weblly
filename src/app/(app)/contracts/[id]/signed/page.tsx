@@ -2,16 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, ShieldCheck } from "lucide-react";
 import { ContractDocument } from "@/components/contracts/contract-document";
-import { PrintButton } from "@/components/contracts/print-button";
+import { PdfButton } from "@/components/ui/pdf-button";
 import { contractContentSchema } from "@/lib/domain/contracts";
 import { formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { first } from "@/lib/utils";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "הסכם חתום" };
 
 /** The frozen, signed version exactly as the client signed it — with the audit trail. */
 export default async function SignedContractPage({ params, searchParams }: PageProps<"/contracts/[id]/signed">) {
+  await requireArea("contracts");
   const { id } = await params;
   const sp = await searchParams;
   const v = Number(first(sp.v));
@@ -33,7 +35,7 @@ export default async function SignedContractPage({ params, searchParams }: PageP
         <Link href={`/contracts/${id}`} className="inline-flex items-center gap-1 text-sm text-ink-3 hover:text-ink">
           <ChevronRight className="size-4" aria-hidden /> להסכם
         </Link>
-        <PrintButton />
+        <PdfButton path={`/contracts/${id}/signed`} version={version} name={`${ver.title} — חתום`} />
       </div>
       <div className="mb-4 rounded-lg border border-ok/25 bg-ok-soft/50 px-4 py-3 text-sm text-ink print:hidden">
         <p className="flex items-center gap-2 font-medium">

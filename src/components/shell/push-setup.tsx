@@ -191,6 +191,15 @@ const EVENTS = [
   { key: "contract_signed", label: "חוזה נחתם", hint: "הלקוח חתם דיגיטלית" },
   { key: "approval_response", label: "אישור / בקשת שינוי מלקוח", hint: "מקישור הצפייה של הפרויקט" },
   { key: "payment_added", label: "נרשם תשלום", hint: "למי שאחראי/ת על גבייה" },
+  { key: "lead_created", label: "ליד חדש", hint: "למי שאחראי/ת על מכירות (או לכל הצוות)" },
+  { key: "client_created", label: "לקוח חדש נפתח", hint: "תיק לקוח חדש — ידני או מתוך שאלון" },
+  { key: "task_completed", label: "משימה שפתחתי הושלמה", hint: "כשמישהו אחר סוגר משימה שיצרת או שהייתה משויכת אליך" },
+  { key: "proposal_viewed", label: "לקוח פתח הצעת מחיר", hint: "הזמן הכי טוב להתקשר" },
+  { key: "follow_up_assigned", label: "מעקב שהוקצה לי", hint: "תזכורת לחזור ללקוח שמישהו שייך אליך" },
+  { key: "project_status", label: "פרויקט עבר שלב", hint: "לאחראי/ת על הפרויקט" },
+  { key: "expense_added", label: "נרשמה הוצאה", hint: "הוצאה חדשה של העסק" },
+  { key: "partner_agreement", label: "הסכם השותפים", hint: "שינוי בהסכם או חתימה של שותף" },
+  { key: "team_changes", label: "שינויים בצוות", hint: "תפקיד חדש, הרשאות, עובד שנוסף" },
 ] as const;
 
 /** What the morning summary may include (each person decides). */

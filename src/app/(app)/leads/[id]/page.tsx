@@ -11,8 +11,10 @@ import { LeadStatusControl, DeleteLeadButton } from "@/components/leads/lead-con
 import { getLead } from "@/lib/data/leads";
 import { leadSource, leadStatus, projectType } from "@/lib/domain/labels";
 import { formatDate, formatDateTime, relativeDue, whatsappLink } from "@/lib/format";
+import { requireArea } from "@/lib/auth";
 
 export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
+  await requireArea("leads");
   const { id } = await params;
   const lead = await getLead(id);
   if (!lead) notFound();

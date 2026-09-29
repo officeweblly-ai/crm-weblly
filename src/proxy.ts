@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Token pages: /form (questionnaire), /q (general link), /p (project), /o (proposal), /s (signature).
-const PUBLIC_PREFIXES = ["/login", "/form/", "/q/", "/p/", "/o/", "/s/", "/auth/", "/api/cron/", "/pwa-icon/", "/apple-icon", "/manifest.webmanifest", "/sw.js"];
+const PUBLIC_PREFIXES = ["/login", "/form/", "/q/", "/p/", "/o/", "/s/", "/auth/", "/api/cron/", "/api/pdf", "/pwa-icon/", "/apple-icon", "/manifest.webmanifest", "/sw.js"];
 
 /**
  * Refreshes the Supabase session cookie on every request and performs an

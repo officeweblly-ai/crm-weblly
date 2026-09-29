@@ -95,7 +95,7 @@ export default async function TodayPage({ searchParams }: PageProps<"/today">) {
               כל הצוות
             </Link>
           </div>
-          <Link href="/settings/team" className="grid size-10 place-items-center rounded-md text-ink-3 hover:bg-sunken hover:text-ink" aria-label="צוות ותחומי אחריות" title="צוות ותחומי אחריות">
+          <Link href="/team" className="grid size-10 place-items-center rounded-md text-ink-3 hover:bg-sunken hover:text-ink" aria-label="צוות ותחומי אחריות" title="צוות ותחומי אחריות">
             <Settings2 className="size-5" aria-hidden />
           </Link>
         </div>

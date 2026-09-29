@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { projectType } from "@/lib/domain/labels";
 import { convertLeadSchema, leadSchema } from "@/lib/validation/schemas";
+import { notify, recipientsFor } from "@/lib/push";
 import { dbError, NOT_AUTHORIZED, parseForm, staffClient } from "./helpers";
 import { fail, ok, type ActionResult } from "./result";
 
@@ -14,6 +15,12 @@ export async function createLead(fd: FormData): Promise<ActionResult<{ id: strin
 
   const { data, error } = await s.supabase.from("leads").insert(p.data).select("id").single();
   if (error) return dbError(error, "שמירת הליד נכשלה");
+  notify(() => recipientsFor("sales"), "lead_created", {
+    title: "ליד חדש",
+    body: [p.data.name, p.data.business_name].filter(Boolean).join(" · "),
+    url: `/leads/${data.id}`,
+    tag: "lead",
+  }, { actor: s.userId });
   revalidatePath("/leads");
   revalidatePath("/");
   return ok({ id: data.id }, `הליד "${p.data.name}" נוסף`);

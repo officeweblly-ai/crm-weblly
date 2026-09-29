@@ -9,10 +9,12 @@ import { proposalStatus, type ProposalStatus } from "@/lib/domain/labels";
 import { formatDate, timeAgo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { first, searchPattern } from "@/lib/utils";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "הצעות מחיר" };
 
 export default async function ProposalsPage({ searchParams }: PageProps<"/proposals">) {
+  await requireArea("proposals");
   const sp = await searchParams;
   const status = first(sp.status);
   const q = first(sp.q);

@@ -209,7 +209,7 @@ export async function submitQuestionnaire(token: string, rawAnswers: unknown): P
     console.error("[finalize]", error);
     return fail("השליחה נכשלה בגלל תקלה בשרת. התשובות שמורות — נסה שוב בעוד רגע.");
   }
-  const result = data as { orphan_paths?: string[]; client_id?: string; created_client?: boolean } | null;
+  const result = data as { orphan_paths?: string[]; client_id?: string; created_client?: boolean; filled_fields?: string[]; suggestions?: Record<string, string> } | null;
   const orphans = (result?.orphan_paths ?? []).filter(Boolean);
   if (orphans.length) await db.storage.from(BUCKET).remove(orphans);
   const { data: who } = result?.client_id ? await db.from("clients").select("name, business_name").eq("id", result.client_id).maybeSingle() : { data: null };
@@ -218,7 +218,10 @@ export async function submitQuestionnaire(token: string, rawAnswers: unknown): P
     return owner === "staff" ? recipientsFor("sales") : owner;
   }, "questionnaire_submitted", {
     title: result?.created_client ? "לקוח חדש מילא שאלון" : "שאלון אפיון התקבל",
-    body: `${who?.business_name || who?.name || "לקוח"} שלח/ה את "${r.s.snapshot.template_name}"`,
+    body:
+      `${who?.business_name || who?.name || "לקוח"} שלח/ה את "${r.s.snapshot.template_name}"` +
+      (result?.filled_fields?.length ? ` · ${result.filled_fields.length} פרטים חסרים הושלמו בתיק הלקוח` : "") +
+      (result?.suggestions && Object.keys(result.suggestions).length ? " · יש פרטים חדשים לאישור" : ""),
     url: `/questionnaires/${r.s.id}`,
     tag: `q-${r.s.id}`,
   });

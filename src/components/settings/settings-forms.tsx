@@ -108,14 +108,38 @@ export function TeamList({ members, meId, isOwner }: { members: Tables<"profiles
   );
 }
 
-export function AddMemberForm() {
+/** Owner turns someone's access on/off. */
+export function MemberAccessButton({ id, active }: { id: string; active: boolean }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <Button
+      size="sm"
+      variant={active ? "ghost" : "primary"}
+      loading={pending}
+      onClick={() =>
+        start(async () => {
+          const r = await setMemberAccess(id, { is_active: !active });
+          if (r.ok) {
+            toast.success(r.message ?? "עודכן");
+            router.refresh();
+          } else toast.error(r.error);
+        })
+      }
+    >
+      {active ? "השבתת גישה" : "הפעלה"}
+    </Button>
+  );
+}
+
+export function AddMemberForm({ roles = [] }: { roles?: { value: string; label: string }[] }) {
   const router = useRouter();
   const { pending, errors, onSubmit } = useFormAction(addTeamMember, {
     onSuccess: () => router.refresh(),
   });
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4 border-t border-line pt-4" noValidate>
-      <h3 className="text-sm font-semibold text-ink">הוספת שותף/ה או עובד/ת</h3>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      <h3 className="text-sm font-semibold text-ink">הוספת עובד/ת או שותף/ה</h3>
       <FormGrid>
         <Field label="שם" required error={errors.full_name}>
           {(p) => <Input {...p} name="full_name" autoComplete="off" />}
@@ -126,14 +150,17 @@ export function AddMemberForm() {
         <Field label="סיסמה זמנית" required hint="מעבירים אותה באופן אישי, ואחרי הכניסה הראשונה מחליפים אותה בהגדרות." error={errors.password}>
           {(p) => <LtrInput {...p} name="password" type="text" autoComplete="new-password" />}
         </Field>
-        <Field label="הרשאה" error={errors.role}>
+        <Field label="תפקיד" hint="קובע אילו אזורים יראה. אפשר לשנות בכל רגע." error={errors.team_role_id}>
           {(p) => (
-            <select {...p} name="role" defaultValue="admin" className="h-10 rounded-md border border-line-strong bg-surface px-3 text-base">
-              <option value="admin">מנהל/ת — גישה מלאה לנתונים</option>
-              <option value="member">צוות — גישה מלאה לנתונים</option>
+            <select {...p} name="team_role_id" defaultValue="" className="h-10 rounded-md border border-line-strong bg-surface px-3 text-base">
+              <option value="">גישה מלאה (ללא תפקיד)</option>
+              {roles.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
             </select>
           )}
         </Field>
+        <input type="hidden" name="role" value="member" />
       </FormGrid>
       <Button type="submit" loading={pending} className="self-start">הוספה לצוות</Button>
     </form>

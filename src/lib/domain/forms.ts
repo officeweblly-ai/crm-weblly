@@ -30,14 +30,36 @@ export type Condition = z.infer<typeof conditionSchema>;
 export const optionSchema = z.object({ value: z.string().min(1), label: z.string().min(1) });
 export type QuestionOption = z.infer<typeof optionSchema>;
 
-export const CLIENT_FIELD_MAPPINGS = ["client.name", "client.business_name", "client.email", "client.phone", "client.website"] as const;
+export const CLIENT_FIELD_MAPPINGS = [
+  "client.name",
+  "client.business_name",
+  "client.email",
+  "client.phone",
+  "client.website",
+  "client.company_id",
+  "client.address",
+  "client.city",
+  "client.industry",
+  "client.contact_role",
+  "client.alt_contact_name",
+  "client.alt_contact_phone",
+  "client.alt_contact_email",
+] as const;
 export type ClientFieldMapping = (typeof CLIENT_FIELD_MAPPINGS)[number];
 export const clientFieldLabel: Record<ClientFieldMapping, string> = {
-  "client.name": "שם הלקוח",
+  "client.name": "שם איש הקשר",
   "client.business_name": "שם העסק",
   "client.email": "אימייל",
   "client.phone": "טלפון",
   "client.website": "אתר",
+  "client.company_id": "ח.פ / ע.מ",
+  "client.address": "כתובת",
+  "client.city": "עיר",
+  "client.industry": "תחום העסק",
+  "client.contact_role": "תפקיד איש הקשר",
+  "client.alt_contact_name": "איש קשר נוסף — שם",
+  "client.alt_contact_phone": "איש קשר נוסף — טלפון",
+  "client.alt_contact_email": "איש קשר נוסף — אימייל",
 };
 
 export type SnapshotQuestion = {

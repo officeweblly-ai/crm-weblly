@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { QuestionnaireForm } from "@/components/form/questionnaire-form";
 import { getTemplate, workspaceSettings } from "@/lib/data/crm";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "תצוגה מקדימה" };
 
 export default async function TemplatePreviewPage({ params }: PageProps<"/questionnaires/templates/[id]/preview">) {
+  await requireArea("questionnaires");
   const { id } = await params;
   const [data, settings] = await Promise.all([getTemplate(id), workspaceSettings()]);
   if (!data) notFound();

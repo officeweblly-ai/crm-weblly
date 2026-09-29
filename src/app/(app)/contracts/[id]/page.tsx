@@ -8,10 +8,12 @@ import { SigningPanel } from "@/components/contracts/signing-panel";
 import { env } from "@/lib/env";
 import { contractContentSchema } from "@/lib/domain/contracts";
 import { createClient } from "@/lib/supabase/server";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "הסכם" };
 
 export default async function ContractPage({ params }: PageProps<"/contracts/[id]">) {
+  await requireArea("contracts");
   const { id } = await params;
   const supabase = await createClient();
   const [{ data: c }, { data: versions }, { data: signatures }] = await Promise.all([
@@ -36,7 +38,7 @@ export default async function ContractPage({ params }: PageProps<"/contracts/[id
               </Link>
             </Button>
           )}
-          <ContractToolbar id={id} clientId={c.client_id} status={c.status} file={c.files} canPrint={parsed.success} />
+          <ContractToolbar id={id} clientId={c.client_id} status={c.status} file={c.files} canPrint={parsed.success} pdfName={[c.contract_number, c.title].filter(Boolean).join(" ")} />
         </div>
       </div>
       <div className="mb-5">

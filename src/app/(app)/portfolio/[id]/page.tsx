@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { MediaPicker, PortfolioForm } from "@/components/portfolio/portfolio-controls";
 import { getPortfolioItem } from "@/lib/data/crm";
 import { portfolioStatus, type PortfolioStatus } from "@/lib/domain/labels";
+import { requireArea } from "@/lib/auth";
 
 export async function generateMetadata({ params }: PageProps<"/portfolio/[id]">) {
   const { id } = await params;
@@ -14,6 +15,7 @@ export async function generateMetadata({ params }: PageProps<"/portfolio/[id]">)
 }
 
 export default async function PortfolioItemPage({ params }: PageProps<"/portfolio/[id]">) {
+  await requireArea("social");
   const { id } = await params;
   const data = await getPortfolioItem(id);
   if (!data) notFound();

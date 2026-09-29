@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileCheck2, Printer, Upload } from "lucide-react";
+import { FileCheck2, Upload } from "lucide-react";
+import { PdfButton } from "@/components/ui/pdf-button";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { StatusSelect } from "@/components/ui/status-select";
@@ -12,7 +13,7 @@ import { attachContractFile, setContractStatus } from "@/lib/actions/contracts";
 import { getFileUrl } from "@/lib/actions/files";
 import { contractStatus, type ContractStatus } from "@/lib/domain/labels";
 
-export function ContractToolbar({ id, clientId, status, file, canPrint }: { id: string; clientId: string; status: ContractStatus; file: { id: string; original_name: string } | null; canPrint: boolean }) {
+export function ContractToolbar({ id, clientId, status, file, canPrint, pdfName }: { id: string; clientId: string; status: ContractStatus; file: { id: string; original_name: string } | null; canPrint: boolean; pdfName: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
@@ -59,9 +60,7 @@ export function ContractToolbar({ id, clientId, status, file, canPrint }: { id: 
         </Modal>
       )}
       {canPrint && (
-        <Button onClick={() => window.print()}>
-          <Printer aria-hidden /> הורדה כ-PDF / הדפסה
-        </Button>
+        <PdfButton path={`/contracts/${id}`} name={pdfName} />
       )}
     </>
   );

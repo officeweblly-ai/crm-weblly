@@ -8,10 +8,12 @@ import { env } from "@/lib/env";
 import type { ProposalStatus } from "@/lib/domain/labels";
 import { formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "הצעת מחיר" };
 
 export default async function ProposalPage({ params }: PageProps<"/proposals/[id]">) {
+  await requireArea("proposals");
   const { id } = await params;
   const supabase = await createClient();
   const [{ data: p }, { data: ws }, { data: contract }] = await Promise.all([
@@ -56,6 +58,7 @@ export default async function ProposalPage({ params }: PageProps<"/proposals/[id
           clientName={client?.name.split(" ")[0] ?? ""}
           convertedProjectId={p.converted_project_id}
           contractId={contract?.id ?? null}
+          pdfName={[`הצעת מחיר ${p.number ?? ""}`.trim(), who].filter(Boolean).join(" — ")}
         />
       </div>
 

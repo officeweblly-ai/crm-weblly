@@ -10,6 +10,7 @@ import { clientOptions, listAlbums, listReels, projectOptions } from "@/lib/data
 import { socialAlbumStatus } from "@/lib/domain/labels";
 import { timeAgo } from "@/lib/format";
 import { cn, first } from "@/lib/utils";
+import { requireArea } from "@/lib/auth";
 
 export const metadata = { title: "סושיאל" };
 
@@ -33,6 +34,7 @@ function Segment({ items }: { items: { href: string; label: string; count?: numb
 }
 
 export default async function SocialPage({ searchParams }: PageProps<"/social">) {
+  await requireArea("social");
   const sp = await searchParams;
   const tab = first(sp.tab) === "ready" ? "ready" : "albums";
   const posted = first(sp.posted) === "1";

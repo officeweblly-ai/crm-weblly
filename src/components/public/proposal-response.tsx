@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Printer, X } from "lucide-react";
+import { Check, X } from "lucide-react";
+import { PdfButton } from "@/components/ui/pdf-button";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { respondToProposal } from "@/lib/actions/proposals";
@@ -25,10 +26,7 @@ export function ProposalResponse({ token }: { token: string }) {
           <X aria-hidden />
           לא מתאים כרגע
         </Button>
-        <Button size="lg" variant="ghost" onClick={() => window.print()} className="sm:ms-auto">
-          <Printer aria-hidden />
-          שמירה כ-PDF
-        </Button>
+        <PdfButton path={`/o/${token}`} name="הצעת מחיר" label="שמירה כ-PDF" variant="ghost" size="lg" className="sm:ms-auto" />
       </div>
     );
   }

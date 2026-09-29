@@ -6,20 +6,24 @@ import { AppPrompt } from "@/components/shell/push-setup";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const viewer = await requireStaff();
   const supabase = await createClient();
-  const { data: settings } = await supabase.from("workspace_settings").select("business_name").maybeSingle();
+  const [{ data: settings }, { count: unread }] = await Promise.all([
+    supabase.from("workspace_settings").select("business_name").maybeSingle(),
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", viewer.userId).is("read_at", null),
+  ]);
   const businessName = settings?.business_name ?? "הסטודיו";
+  const allowed = viewer.access.all ? ("all" as const) : [...viewer.access.allowed];
 
   return (
     <div className="min-h-dvh">
-      <Sidebar businessName={businessName} userName={viewer.profile.full_name} email={viewer.email} />
+      <Sidebar businessName={businessName} userName={viewer.profile.full_name} email={viewer.email} allowed={allowed} />
       <div className="lg:ps-60 print:ps-0">
-        <TopBar businessName={businessName} />
-        <main id="main" className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12 lg:pt-8 print:max-w-none print:p-0">
+        <TopBar businessName={businessName} allowed={allowed} unread={unread ?? 0} />
+        <main id="main" className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pb-12 lg:pt-8 print:max-w-none print:p-0">
           <AppPrompt />
           {children}
         </main>
       </div>
-      <MobileNav businessName={businessName} userName={viewer.profile.full_name} email={viewer.email} />
+      <MobileNav businessName={businessName} userName={viewer.profile.full_name} email={viewer.email} allowed={allowed} />
     </div>
   );
 }
