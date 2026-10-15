@@ -1187,38 +1187,88 @@ export type Database = {
           id: string;
           agreement_id: string;
           version: number;
-          user_id: string;
+          user_id: string | null;
           signer_name: string;
           id_number: string | null;
           signature: string;
           content_hash: string;
           signed_at: string;
+          party_key: string | null;
+          typed_name: string | null;
+          ip: string | null;
+          user_agent: string | null;
+          replaced_at: string | null;
         };
         Insert: {
           id?: string;
           agreement_id: string;
           version: number;
-          user_id: string;
+          user_id?: string | null;
           signer_name: string;
           id_number?: string | null;
           signature: string;
           content_hash: string;
           signed_at?: string;
+          party_key?: string | null;
+          typed_name?: string | null;
+          ip?: string | null;
+          user_agent?: string | null;
+          replaced_at?: string | null;
         };
         Update: {
           id?: string;
           agreement_id?: string;
           version?: number;
-          user_id?: string;
+          user_id?: string | null;
           signer_name?: string;
           id_number?: string | null;
           signature?: string;
           content_hash?: string;
           signed_at?: string;
+          party_key?: string | null;
+          typed_name?: string | null;
+          ip?: string | null;
+          user_agent?: string | null;
+          replaced_at?: string | null;
         };
         Relationships: [
           { foreignKeyName: "partner_agreement_signatures_agreement_id_fkey"; columns: ["agreement_id"]; isOneToOne: false; referencedRelation: "partner_agreements"; referencedColumns: ["id"] },
           { foreignKeyName: "partner_agreement_signatures_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      partner_agreement_versions: {
+        Row: {
+          agreement_id: string;
+          version: number;
+          title: string;
+          content: Json;
+          content_hash: string;
+          frozen_at: string;
+          completed_at: string | null;
+          signed_pdf_path: string | null;
+        };
+        Insert: {
+          agreement_id: string;
+          version: number;
+          title: string;
+          content: Json;
+          content_hash: string;
+          frozen_at?: string;
+          completed_at?: string | null;
+          signed_pdf_path?: string | null;
+        };
+        Update: {
+          agreement_id?: string;
+          version?: number;
+          title?: string;
+          content?: Json;
+          content_hash?: string;
+          frozen_at?: string;
+          completed_at?: string | null;
+          signed_pdf_path?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: "partner_agreement_versions_agreement_id_fkey"; columns: ["agreement_id"]; isOneToOne: false; referencedRelation: "partner_agreements"; referencedColumns: ["id"] },
         ];
       };
       partner_agreements: {
@@ -1231,6 +1281,8 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          kind: string;
+          sign_token: string | null;
         };
         Insert: {
           id?: string;
@@ -1241,6 +1293,8 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          kind?: string;
+          sign_token?: string | null;
         };
         Update: {
           id?: string;
@@ -1251,6 +1305,8 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          kind?: string;
+          sign_token?: string | null;
         };
         Relationships: [
           { foreignKeyName: "partner_agreements_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -2243,7 +2299,7 @@ export type Database = {
       respond_to_proposal: { Args: { p_token: string; p_decision: string; p_name?: string; p_note?: string }; Returns: Json };
       responsible_for: { Args: { p_category: string }; Returns: string };
       sign_contract: { Args: { p_token: string; p_version: number; p_hash: string; p_name: string; p_id_number: string; p_email: string; p_signature: string; p_ip?: string; p_user_agent?: string }; Returns: Json };
-      sign_partner_agreement: { Args: { p_id: string; p_version: number; p_name: string; p_id_number: string; p_signature: string; p_hash: string }; Returns: Json };
+      sign_partner_agreement_link: { Args: { p_token: string; p_party: string; p_version: number; p_title: string; p_content: Json; p_hash: string; p_signature: string; p_typed_name?: string; p_ip?: string; p_user_agent?: string; p_replace?: boolean }; Returns: Json };
       task_status_label: { Args: { s: Database["public"]["Enums"]["task_status"] }; Returns: string };
       work_category_label: { Args: { c: string }; Returns: string };
     };

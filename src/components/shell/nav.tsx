@@ -59,6 +59,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: "/projects", label: "פרויקטים", icon: FolderKanban },
       { href: "/questionnaires", label: "שאלוני אפיון", icon: ClipboardList },
       { href: "/proposals", label: "הצעות מחיר", icon: ReceiptText, area: "proposals" },
+      { href: "/contracts", label: "חוזים", icon: FileSignature },
     ],
   },
   {

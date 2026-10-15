@@ -696,24 +696,71 @@ async function main() {
     await rejects(`insert into business_goals (title, target, period_start, period_end) values ('x', 1, '2026-02-01', '2026-01-01')`, [], /check constraint/);
   });
 
-  await test("v4 partner agreement: each partner signs; editing starts a new version", async () => {
+  await test("partnership agreement: link signing, explicit replacement, frozen versions", async () => {
     await as("authenticated", OWNER);
-    const content = JSON.stringify({ partners: [{ user_id: OWNER }, { user_id: SECOND }], clauses: [] });
-    const a = await one<{ id: string }>(`insert into partner_agreements (title, content) values ('הסכם שותפות', $1::jsonb) returning id`, [content]);
+    const content = { parties: [{ key: "yanai", name: "ינאי מזרחי" }, { key: "noya", name: "נויה גאולה" }], sections: [] };
+    const token = "t".repeat(43);
+    const a = await one<{ id: string }>(`insert into partner_agreements (title, content, sign_token) values ('הסכם שותפות', $1::jsonb, $2) returning id`, [JSON.stringify(content), token]);
     const png = "data:image/png;base64,AAAA";
-    const r1 = await one<{ sign_partner_agreement: { signed: number; needed: number } }>(`select sign_partner_agreement($1, 1, 'ינאי', null, $2, 'h')`, [a.id, png]);
-    assert.deepEqual(r1.sign_partner_agreement, { signed: 1, needed: 2 });
-    await rejects(`select sign_partner_agreement($1, 2, 'ינאי', null, $2, 'h')`, [a.id, png], /changed/);
-    await as("authenticated", SECOND);
-    await db.query(`select sign_partner_agreement($1, 1, 'שותף', null, $2, 'h')`, [a.id, png]);
+    const h1 = "a".repeat(64);
+    const sign = (party: string, version: number, c: unknown, hash: string, replace = false) =>
+      one<{ r: { signed: number; needed: number; complete: boolean; replaced: boolean } }>(
+        `select sign_partner_agreement_link($1, $2, $3, 'הסכם שותפות', $4::jsonb, $5, $6, null, '1.2.3.4', 'UA', $7) r`,
+        [token, party, version, JSON.stringify(c), hash, png, replace],
+      );
+
+    // Staff cannot call the link function directly — only the server (service role).
+    await rejects(`select sign_partner_agreement_link($1, 'yanai', 1, 'הסכם שותפות', $2::jsonb, $3, $4)`, [token, JSON.stringify(content), h1, png], /permission denied/);
+
+    await as("service_role");
+    const r1 = await sign("yanai", 1, content, h1);
+    assert.deepEqual([r1.r.signed, r1.r.needed, r1.r.complete], [1, 2, false]);
     let s = await one<{ status: string; version: number }>(`select status, version from partner_agreements where id = $1`, [a.id]);
+    assert.deepEqual(s, { status: "partial", version: 1 });
+    // Signing twice without an explicit replacement is refused.
+    await rejects(`select sign_partner_agreement_link($1, 'yanai', 1, 'הסכם שותפות', $2::jsonb, $3, $4)`, [token, JSON.stringify(content), h1, png], /Already signed/);
+    // Unknown party, stale version, different text, different hash.
+    await rejects(`select sign_partner_agreement_link($1, 'someone', 1, 'הסכם שותפות', $2::jsonb, $3, $4)`, [token, JSON.stringify(content), h1, png], /Not a party/);
+    await rejects(`select sign_partner_agreement_link($1, 'noya', 2, 'הסכם שותפות', $2::jsonb, $3, $4)`, [token, JSON.stringify(content), h1, png], /changed/);
+    await rejects(`select sign_partner_agreement_link($1, 'noya', 1, 'הסכם שותפות', $2::jsonb, $3, $4)`, [token, JSON.stringify({ ...content, x: 1 }), h1, png], /changed/);
+    await rejects(`select sign_partner_agreement_link($1, 'noya', 1, 'הסכם שותפות', $2::jsonb, $3, $4)`, [token, JSON.stringify(content), "b".repeat(64), png], /changed/);
+
+    const r2 = await sign("noya", 1, content, h1);
+    assert.equal(r2.r.complete, true);
+    s = await one<{ status: string; version: number }>(`select status, version from partner_agreements where id = $1`, [a.id]);
     assert.deepEqual(s, { status: "signed", version: 1 });
-    await rejects(`insert into partner_agreement_signatures (agreement_id, version, user_id, signer_name, signature, content_hash) values ($1, 1, $2, 'xx', $3, 'h')`, [a.id, SECOND, png], /permission denied/);
-    await db.query(`update partner_agreements set content = jsonb_set(content, '{clauses}', '[{"title": "x"}]') where id = $1`, [a.id]);
+
+    // Explicit replacement keeps the old signature as history.
+    const r3 = await sign("yanai", 1, content, h1, true);
+    assert.deepEqual([r3.r.replaced, r3.r.complete], [true, true]);
+    const hist = await one<{ all: number; active: number }>(`select count(*)::int "all", count(*) filter (where replaced_at is null)::int active from partner_agreement_signatures where agreement_id = $1 and party_key = 'yanai'`, [a.id]);
+    assert.deepEqual(hist, { all: 2, active: 1 });
+
+    // The frozen version is immutable and cannot be deleted; the agreement neither.
+    await as("postgres");
+    await rejects(`update partner_agreement_versions set content = '{"x":1}' where agreement_id = $1`, [a.id], /immutable/);
+    await db.query(`update partner_agreement_versions set signed_pdf_path = 'x.pdf' where agreement_id = $1`, [a.id]);
+    await rejects(`delete from partner_agreement_versions where agreement_id = $1`, [a.id], /cannot be deleted/);
+
+    await as("authenticated", OWNER);
+    await rejects(`insert into partner_agreement_signatures (agreement_id, version, party_key, signer_name, signature, content_hash) values ($1, 1, 'noya', 'xx', $2, 'h')`, [a.id, png], /permission denied/);
+    await rejects(`update partner_agreement_signatures set signature = $2 where agreement_id = $1`, [a.id, png], /permission denied/);
+    await rejects(`delete from partner_agreements where id = $1`, [a.id], /cannot be deleted/);
+
+    // Editing the signed text opens version 2, back to draft; v1 stays as signed.
+    await db.query(`update partner_agreements set content = jsonb_set(content, '{sections}', '[{"title": "x"}]') where id = $1`, [a.id]);
+    s = await one<{ status: string; version: number }>(`select status, version from partner_agreements where id = $1`, [a.id]);
+    assert.deepEqual(s, { status: "draft", version: 2 });
+    const v1 = await one<{ content: { sections: unknown[] }; completed_at: string | null }>(`select content, completed_at from partner_agreement_versions where agreement_id = $1 and version = 1`, [a.id]);
+    assert.deepEqual(v1.content.sections, []);
+    assert.ok(v1.completed_at);
+    // Editing an unsigned draft keeps the same version.
+    await db.query(`update partner_agreements set title = 'הסכם שותפות וניהול פעילות' where id = $1`, [a.id]);
     s = await one<{ status: string; version: number }>(`select status, version from partner_agreements where id = $1`, [a.id]);
     assert.deepEqual(s, { status: "draft", version: 2 });
     await as("anon");
     await rejects(`select * from partner_agreements`, [], /permission denied/);
+    await rejects(`select * from partner_agreement_versions`, [], /permission denied/);
   });
 
   await test("deleting a client cascades cleanly (no FK errors from activity triggers)", async () => {

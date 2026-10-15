@@ -30,6 +30,7 @@ export function areaForPath(path: string): Permission | null {
   const rules: [string, Permission][] = [
     ["/leads", "leads"],
     ["/proposals", "proposals"],
+    ["/contracts/partnership", "partners"],
     ["/contracts", "contracts"],
     ["/finances", "finances"],
     ["/business/expenses", "finances"],

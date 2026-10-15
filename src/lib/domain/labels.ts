@@ -398,9 +398,9 @@ export const goalStatus = options<GoalStatus>([
   { value: "dropped", label: "נעצר", tone: "neutral" },
 ]);
 
-export type PartnerAgreementStatus = "draft" | "signing" | "signed";
+export type PartnerAgreementStatus = "draft" | "partial" | "signed";
 export const partnerAgreementStatus = options<PartnerAgreementStatus>([
   { value: "draft", label: "טיוטה", tone: "neutral" },
-  { value: "signing", label: "בחתימה", tone: "warn" },
-  { value: "signed", label: "נחתם על ידי כולם", tone: "ok" },
+  { value: "partial", label: "נחתם חלקית", tone: "warn" },
+  { value: "signed", label: "נחתם במלואו", tone: "ok" },
 ]);

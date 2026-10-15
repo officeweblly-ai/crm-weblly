@@ -1,0 +1,475 @@
+/*
+ * Partnership agreement — legal document typography.
+ * Black on white, IBM Plex Sans Hebrew (the app's family), hanging clause
+ * numbers, thin rules. One stylesheet for screen, print and the server PDF.
+ *
+ * Print/PDF: named page "agreement" (A4) with CSS page margin boxes — running
+ * header from page 2, footer with "עמוד X מתוך Y" on every page. The per-document
+ * values (id, version, state) are added inline by AgreementDocument.
+ */
+.agr {
+  --agr-ink: #111111;
+  --agr-ink-2: #3d3d3d;
+  --agr-ink-3: #6a6a6a;
+  --agr-rule: #d4d4d4;
+  --agr-rule-strong: #111111;
+  --agr-num-col: 2.9em;
+
+  direction: rtl;
+  color: var(--agr-ink);
+  background: #fff;
+  font-family: var(--font-plex), "Arial Hebrew", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.75;
+  font-feature-settings: "kern" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
+  padding: 28px 20px 32px;
+}
+@media (min-width: 640px) {
+  .agr {
+    font-size: 15px;
+    line-height: 1.78;
+    padding: 56px 64px 48px;
+  }
+}
+@media (min-width: 1024px) {
+  .agr {
+    padding: 72px 84px 56px; /* ≈ 19mm / 22mm on a 210mm sheet */
+  }
+}
+
+.agr p {
+  margin: 0;
+}
+.agr .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* ---------- Letterhead ---------- */
+.agr-letterhead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--agr-rule-strong);
+}
+.agr-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+.agr-brand-mark {
+  height: 17px;
+  width: auto;
+}
+.agr-meta {
+  display: flex;
+  gap: 18px;
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--agr-ink-3);
+  text-align: start;
+}
+.agr-meta div {
+  display: flex;
+  flex-direction: column;
+}
+.agr-meta dt {
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+.agr-meta dd {
+  margin: 0;
+  color: var(--agr-ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Title ---------- */
+.agr-state {
+  margin: 28px auto 0 !important;
+  width: fit-content;
+  padding: 3px 12px;
+  border: 1px solid var(--agr-ink);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+}
+.agr-title {
+  margin: 30px 0 0;
+  text-align: center;
+  font-size: 23px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+.agr-state + .agr-title {
+  margin-top: 18px;
+}
+.agr-dateline {
+  margin-top: 8px !important;
+  text-align: center;
+  color: var(--agr-ink-2);
+}
+.agr-blank {
+  display: inline-block;
+  width: 9em;
+  border-bottom: 1px solid var(--agr-ink-3);
+  vertical-align: -0.15em;
+}
+.agr-blank-sm {
+  width: 7em;
+}
+
+/* ---------- Parties ---------- */
+.agr-parties {
+  margin-top: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.agr-party {
+  display: grid;
+  grid-template-columns: 3.6em 1fr auto;
+  gap: 0 12px;
+  align-items: baseline;
+}
+.agr-party-label {
+  font-weight: 700;
+}
+.agr-party-name {
+  font-weight: 700;
+}
+.agr-party-term {
+  color: var(--agr-ink-2);
+}
+.agr-party-side {
+  color: var(--agr-ink-2);
+  align-self: end;
+}
+.agr-together {
+  margin-top: 4px !important;
+  padding-inline-start: calc(3.6em + 12px);
+  color: var(--agr-ink-2);
+}
+
+/* ---------- Recitals ---------- */
+.agr-recitals {
+  margin-top: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.agr-recital {
+  display: grid;
+  grid-template-columns: 4.4em 1fr;
+  gap: 0 12px;
+}
+.agr-recital-word {
+  font-weight: 700;
+}
+.agr-operative {
+  margin-top: 24px !important;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* ---------- Sections & clauses ---------- */
+.agr-body {
+  margin-top: 30px;
+  border-top: 1px solid var(--agr-rule);
+}
+.agr-section {
+  padding-top: 26px;
+}
+.agr-h2 {
+  display: grid;
+  grid-template-columns: var(--agr-num-col) 1fr;
+  margin: 0 0 12px;
+  font-size: 1.065em;
+  line-height: 1.45;
+  font-weight: 700;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.agr-num {
+  font-variant-numeric: tabular-nums;
+}
+.agr-clause {
+  display: grid;
+  grid-template-columns: var(--agr-num-col) 1fr;
+  margin-top: 10px;
+}
+/* A long clause may continue on the next page; a paragraph, a list item or the
+   table never splits, and a heading never ends a page. */
+.agr-clause-body > p,
+.agr-list li,
+.agr-equity,
+.agr-recital,
+.agr-party {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.agr-clause-body > p:first-child:not(:last-child),
+.agr-clause-title,
+.agr-list li:first-child:not(:last-child) {
+  break-after: avoid;
+}
+.agr-clause > .agr-num {
+  color: var(--agr-ink-2);
+}
+.agr-clause-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  orphans: 3;
+  widows: 3;
+}
+.agr-runin,
+.agr-clause-title {
+  font-weight: 600;
+}
+.agr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.agr-list li {
+  display: grid;
+  grid-template-columns: 2.3em 1fr;
+}
+.agr-letter {
+  color: var(--agr-ink-2);
+}
+
+.agr-equity {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 380px;
+  margin: 2px 0;
+  font-size: 0.95em;
+}
+.agr-equity th,
+.agr-equity td {
+  text-align: start;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--agr-rule);
+}
+.agr-equity thead th {
+  font-weight: 600;
+  font-size: 0.9em;
+  color: var(--agr-ink-2);
+  border-top: 1px solid var(--agr-rule-strong);
+}
+.agr-equity td[dir="ltr"] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.agr-equity tbody tr:last-child td {
+  border-bottom-color: var(--agr-rule-strong);
+}
+
+/* ---------- Notice ---------- */
+.agr-notice {
+  margin-top: 30px !important;
+  font-size: 0.86em;
+  line-height: 1.6;
+  color: var(--agr-ink-3);
+}
+
+/* ---------- Signatures ---------- */
+.agr-signatures {
+  margin-top: 40px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.agr-witness {
+  font-weight: 700;
+}
+.agr-sig-grid {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 34px;
+}
+@media (min-width: 560px) {
+  .agr-sig-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+  }
+}
+.agr-sig-area {
+  height: 92px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-bottom: 1px solid var(--agr-ink);
+  padding-bottom: 4px;
+}
+.agr-sig-img {
+  max-height: 80px;
+  max-width: 88%;
+  width: auto;
+  object-fit: contain;
+}
+.agr-sig-pending {
+  align-self: center;
+  font-size: 12.5px;
+  color: var(--agr-ink-3);
+}
+.agr-sig-name {
+  margin-top: 8px !important;
+  font-weight: 700;
+}
+.agr-sig-role {
+  font-size: 0.88em;
+  line-height: 1.5;
+  color: var(--agr-ink-2);
+}
+.agr-sig-date {
+  margin-top: 2px !important;
+  font-size: 0.88em;
+  color: var(--agr-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.agr-sig-slot {
+  margin-top: 12px;
+}
+
+/* ---------- Audit footer ---------- */
+.agr-audit {
+  margin-top: 44px;
+  padding-top: 12px;
+  border-top: 1px solid var(--agr-rule);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--agr-ink-3);
+}
+.agr-hash {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+}
+
+/* ---------- Print / PDF ---------- */
+@page agreement {
+  size: A4;
+  margin: 22mm 20mm 20mm;
+
+  @top-right {
+    content: "WEBLLY";
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 7.5pt;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: #111;
+    vertical-align: bottom;
+    padding-bottom: 5mm;
+  }
+  @top-left {
+    font-family: "IBM Plex Sans Hebrew", "Arial Hebrew", Arial, sans-serif;
+    font-size: 7.5pt;
+    color: #6a6a6a;
+    direction: rtl;
+    vertical-align: bottom;
+    padding-bottom: 5mm;
+  }
+  @bottom-right {
+    font-family: "IBM Plex Sans Hebrew", "Arial Hebrew", Arial, sans-serif;
+    font-size: 7.5pt;
+    color: #6a6a6a;
+    direction: rtl;
+    vertical-align: top;
+    padding-top: 5mm;
+  }
+  @bottom-left {
+    font-family: "IBM Plex Sans Hebrew", "Arial Hebrew", Arial, sans-serif;
+    font-size: 7.5pt;
+    color: #111;
+    direction: rtl;
+    vertical-align: top;
+    padding-top: 5mm;
+  }
+}
+
+@media print {
+  .agr {
+    page: agreement;
+    font-size: 10.5pt;
+    line-height: 1.68;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    max-width: none !important;
+  }
+  .agr-letterhead {
+    padding-bottom: 4mm;
+  }
+  .agr-title {
+    font-size: 17pt;
+    margin-top: 9mm;
+  }
+  .agr-state {
+    font-size: 8.5pt;
+    margin-top: 8mm !important;
+  }
+  .agr-meta {
+    font-size: 8pt;
+  }
+  .agr-meta dt {
+    font-size: 7.5pt;
+  }
+  .agr-section {
+    padding-top: 6mm;
+  }
+  .agr-notice {
+    margin-top: 6mm !important;
+  }
+  .agr-signatures {
+    margin-top: 8mm;
+  }
+  .agr-sig-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14mm;
+    margin-top: 4mm;
+  }
+  .agr-sig-area {
+    height: 22mm;
+  }
+  .agr-sig-img {
+    max-height: 19mm;
+  }
+  .agr-sig-slot {
+    display: none !important;
+  }
+  .agr-audit {
+    margin-top: 6mm;
+    padding-top: 2.5mm;
+    font-size: 7.5pt;
+    line-height: 1.5;
+    break-inside: avoid;
+  }
+  .agr-hash {
+    font-size: 7pt;
+  }
+}

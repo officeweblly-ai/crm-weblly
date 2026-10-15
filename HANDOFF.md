@@ -186,13 +186,35 @@ Patterns to follow:
   up automatically; a banner lists missing details.
 - **Nav:** sidebar/drawer grouped (יום עבודה · לקוחות ופרויקטים · העסק · תוכן), filtered by role; quick-add has "הוצאה".
 
+### Partnership agreement — contracts module (2026-10-16)
+- **חוזים** (`/contracts`, nav under לקוחות ופרויקטים): one list for the partnership agreement and client contracts
+  (name, type, parties, status, signatures, updated; open / copy link / PDF).
+- The WEBLLY partnership agreement (Yanai ⇄ Noya) is structured data in `src/lib/domain/partners.ts`
+  (parties → recitals → sections → clauses → blocks: paragraph / lettered list / equity table), wording from the
+  owners' PDF; no partner-exit clause (owner's request). Tested in `partners.test.ts`.
+- Document: `src/components/agreement/agreement-document.tsx` + `agreement.css` — black & white legal layout, the same
+  markup for screen, browser print and server PDF. Print uses a named `@page agreement` with page margin boxes
+  (running header from page 2, "עמוד X מתוך Y", id/version/state).
+- Secure link `/agreement/<token>` (public prefix in `proxy.ts`): "מי חותם עכשיו?" (kept in sessionStorage per token),
+  sign / "שינוי חתימה" (explicit confirm), `?v=N` shows an older frozen version read-only.
+  `signAgreement()` (`src/lib/actions/agreement.ts`) re-hashes the live text, then `sign_partner_agreement_link()`
+  (service role only) locks the row, freezes the version, writes the signature (party, PNG, typed name, IP, UA, time).
+  A replaced signature stays with `replaced_at`. When both signed, the final PDF is rendered (`src/lib/pdf.ts`) and
+  stored in `crm-files/partner-agreements/<id>/v<N>-signed-*.pdf` (`partner_agreement_versions.signed_pdf_path`).
+- Immutability: `partner_agreement_versions` cannot be updated (text) or deleted; an agreement with signatures cannot
+  be deleted; editing after any signature bumps the version (trigger) and resets signing for the new version.
+- Admin: `/contracts/partnership/<id>` (preview, status, details, versions + signature history, stored signed PDF),
+  `/contracts/partnership/<id>/edit`. `/business/partners` redirects there.
+- Note: the token is the only credential on the link — anyone holding it can sign as either partner. Share it only
+  between the partners.
+
 ## 5. Environment & database
 
 `.env.local` (never commit): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
 `NEXT_PUBLIC_SITE_URL`, `SUPABASE_DB_URL` (direct/pooler connection string, only for scripts).
 
 Migrations are tracked in `internal.app_migrations`. Apply new ones with `npm run db:migrate`.
-Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications, 1000 v3_enums, 1100 v3_daily_workflow, 1200 v4_business.
+Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications, 1000 v3_enums, 1100 v3_daily_workflow, 1200 v4_business, 1300 partnership_signing.
 **Network note:** the direct host `db.<ref>.supabase.co` is IPv6-only and does not resolve on IPv4-only networks
 (`getaddrinfo ENOTFOUND`). Use the Session pooler instead: user `postgres.<ref>`, host
 `aws-0-ap-northeast-1.pooler.supabase.com`, port 5432 (same password) — e.g. `SUPABASE_DB_URL=… npm run db:migrate`.

@@ -154,7 +154,7 @@ export default async function BusinessPage() {
           )}
 
           {seePartners && (
-            <Link href="/business/partners" className="group flex items-start gap-3 rounded-lg border border-line bg-surface p-4 shadow-1 hover:border-line-strong">
+            <Link href={agreement ? `/contracts/partnership/${agreement.id}` : "/contracts"} className="group flex items-start gap-3 rounded-lg border border-line bg-surface p-4 shadow-1 hover:border-line-strong">
               <Handshake className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold text-ink">הסכם שותפים</span>
@@ -164,7 +164,7 @@ export default async function BusinessPage() {
                     גרסה {agreement.version}
                   </span>
                 ) : (
-                  <span className="mt-0.5 block text-sm text-ink-3">עוד לא נוצר — טיוטה מלאה מוכנה בלחיצה</span>
+                  <span className="mt-0.5 block text-sm text-ink-3">עוד לא נוצר — הנוסח המלא מוכן בלחיצה</span>
                 )}
               </span>
               <ArrowLeft className="mt-1 size-4 text-ink-3 transition-transform group-hover:-translate-x-0.5" aria-hidden />

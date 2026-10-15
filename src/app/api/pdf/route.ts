@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { areaForPath } from "@/lib/domain/permissions";
+import { renderPdf } from "@/lib/pdf";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -16,31 +17,9 @@ const STAFF_PATHS = [
   /^\/proposals\/[0-9a-f-]{36}$/,
   /^\/contracts\/[0-9a-f-]{36}$/,
   /^\/contracts\/[0-9a-f-]{36}\/signed$/,
-  /^\/business\/partners$/,
 ];
-const PUBLIC_PATHS = [/^\/o\/[A-Za-z0-9_-]{43}$/, /^\/s\/[A-Za-z0-9_-]{43}$/];
-
-async function launch() {
-  const puppeteer = (await import("puppeteer-core")).default;
-  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    const chromium = (await import("@sparticuz/chromium")).default;
-    return puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
-      defaultViewport: { width: 1200, height: 1600 },
-    });
-  }
-  // Local development: the installed Chrome.
-  const local =
-    process.env.CHROME_PATH ??
-    (process.platform === "darwin"
-      ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-      : process.platform === "win32"
-        ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-        : "/usr/bin/google-chrome");
-  return puppeteer.launch({ executablePath: local, headless: true, defaultViewport: { width: 1200, height: 1600 } });
-}
+// Token pages: proposal, client contract, partnership agreement.
+const PUBLIC_PATHS = [/^\/o\/[A-Za-z0-9_-]{43}$/, /^\/s\/[A-Za-z0-9_-]{43}$/, /^\/agreement\/[A-Za-z0-9_-]{43}$/];
 
 function safeName(name: string | null) {
   const n = (name ?? "document").replace(/[\\/:*?"<>|\n\r]+/g, " ").trim().slice(0, 120) || "document";
@@ -71,28 +50,10 @@ export async function GET(req: NextRequest) {
   const target = new URL(path, origin);
   if (version && /^\d{1,4}$/.test(version)) target.searchParams.set("v", version);
 
-  let browser: Awaited<ReturnType<typeof launch>> | null = null;
   try {
-    browser = await launch();
-    const page = await browser.newPage();
-    if (isStaff) {
-      // The signed-in person's own session, only toward our own origin.
-      const host = req.nextUrl.hostname;
-      const secure = req.nextUrl.protocol === "https:";
-      const cookies = req.cookies.getAll().map((c) => ({ name: c.name, value: c.value, domain: host, path: "/", secure, httpOnly: true, sameSite: "Lax" as const }));
-      if (cookies.length) await browser.setCookie(...cookies);
-    }
-    await page.emulateMediaType("print");
-    const res = await page.goto(target.toString(), { waitUntil: "networkidle0", timeout: 45_000 });
-    if (!res || !res.ok()) throw new Error(`page status ${res?.status()}`);
-    // Streaming: wait until no loading skeleton is left, and fonts are ready.
-    await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'), { timeout: 20_000 });
-    await page.evaluate(async () => {
-      await document.fonts.ready;
-    });
-    const pdf = await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true });
+    const pdf = await renderPdf(target, { cookies: isStaff ? req.cookies.getAll() : [] });
     const name = safeName(req.nextUrl.searchParams.get("name"));
-    return new NextResponse(Buffer.from(pdf), {
+    return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="document.pdf"; filename*=UTF-8''${encodeURIComponent(name)}`,
@@ -102,7 +63,5 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error("[pdf]", (e as Error).message);
     return NextResponse.json({ error: "הפקת ה-PDF נכשלה. אפשר לנסות שוב, או להשתמש בהדפסה." }, { status: 500 });
-  } finally {
-    await browser?.close().catch(() => {});
   }
 }
