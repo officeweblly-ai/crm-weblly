@@ -5,6 +5,7 @@
  */
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import { toAuthPassword } from "../src/lib/auth-password";
 
 config({ path: ".env.local" });
 config();
@@ -15,15 +16,15 @@ async function main() {
     console.error('Usage: npm run create-admin -- <email> <password> ["Full name"]');
     process.exit(1);
   }
-  if (password.length < 10) {
-    console.error("Use a password of at least 10 characters.");
+  if (password.length < 5) {
+    console.error("Use a password of at least 5 characters.");
     process.exit(1);
   }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
   const db = createClient(url, key, { auth: { persistSession: false } });
-  const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName } });
+  const { data, error } = await db.auth.admin.createUser({ email, password: toAuthPassword(password), email_confirm: true, user_metadata: { full_name: fullName } });
   if (error) throw error;
   const { data: profile } = await db.from("profiles").select("role, is_active").eq("id", data.user.id).single();
   console.log(`Created ${email} — role: ${profile?.role}, active: ${profile?.is_active}`);

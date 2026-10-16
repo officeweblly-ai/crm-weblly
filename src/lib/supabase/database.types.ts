@@ -292,6 +292,71 @@ export type Database = {
           { foreignKeyName: "business_strategy_updated_by_fkey"; columns: ["updated_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
+      calendar_events: {
+        Row: {
+          id: string;
+          title: string;
+          kind: string;
+          starts_on: string;
+          ends_on: string | null;
+          all_day: boolean;
+          start_time: string | null;
+          end_time: string | null;
+          assigned_to: string | null;
+          client_id: string | null;
+          project_id: string | null;
+          description: string | null;
+          reminder_minutes: number | null;
+          reminded_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          kind?: string;
+          starts_on: string;
+          ends_on?: string | null;
+          all_day?: boolean;
+          start_time?: string | null;
+          end_time?: string | null;
+          assigned_to?: string | null;
+          client_id?: string | null;
+          project_id?: string | null;
+          description?: string | null;
+          reminder_minutes?: number | null;
+          reminded_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          kind?: string;
+          starts_on?: string;
+          ends_on?: string | null;
+          all_day?: boolean;
+          start_time?: string | null;
+          end_time?: string | null;
+          assigned_to?: string | null;
+          client_id?: string | null;
+          project_id?: string | null;
+          description?: string | null;
+          reminder_minutes?: number | null;
+          reminded_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "calendar_events_assigned_to_fkey"; columns: ["assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "calendar_events_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
+          { foreignKeyName: "calendar_events_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "calendar_events_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+        ];
+      };
       client_interactions: {
         Row: {
           id: string;
@@ -1010,6 +1075,7 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          next_action: string | null;
         };
         Insert: {
           id?: string;
@@ -1031,6 +1097,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          next_action?: string | null;
         };
         Update: {
           id?: string;
@@ -1052,6 +1119,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          next_action?: string | null;
         };
         Relationships: [
           { foreignKeyName: "leads_converted_client_id_fkey"; columns: ["converted_client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
@@ -1310,6 +1378,52 @@ export type Database = {
         };
         Relationships: [
           { foreignKeyName: "partner_agreements_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      payment_schedule: {
+        Row: {
+          id: string;
+          project_id: string;
+          title: string;
+          amount: number;
+          due_date: string | null;
+          payment_id: string | null;
+          position: number;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          title: string;
+          amount: number;
+          due_date?: string | null;
+          payment_id?: string | null;
+          position?: number;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          title?: string;
+          amount?: number;
+          due_date?: string | null;
+          payment_id?: string | null;
+          position?: number;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "payment_schedule_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "payment_schedule_payment_id_fkey"; columns: ["payment_id"]; isOneToOne: false; referencedRelation: "payments"; referencedColumns: ["id"] },
+          { foreignKeyName: "payment_schedule_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
         ];
       };
       payments: {
@@ -1673,6 +1787,65 @@ export type Database = {
         Relationships: [
           { foreignKeyName: "project_links_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "project_links_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
+        ];
+      };
+      project_milestones: {
+        Row: {
+          id: string;
+          project_id: string;
+          title: string;
+          phase: string | null;
+          start_date: string | null;
+          end_date: string | null;
+          status: string;
+          assigned_to: string | null;
+          depends_on: string | null;
+          notes: string | null;
+          position: number;
+          completed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          title: string;
+          phase?: string | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          status?: string;
+          assigned_to?: string | null;
+          depends_on?: string | null;
+          notes?: string | null;
+          position?: number;
+          completed_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          title?: string;
+          phase?: string | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          status?: string;
+          assigned_to?: string | null;
+          depends_on?: string | null;
+          notes?: string | null;
+          position?: number;
+          completed_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "project_milestones_assigned_to_fkey"; columns: ["assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_milestones_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_milestones_depends_on_fkey"; columns: ["depends_on"]; isOneToOne: false; referencedRelation: "project_milestones"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_milestones_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
         ];
       };
       project_references: {
@@ -2066,6 +2239,8 @@ export type Database = {
           secondary_assigned_to: string | null;
           category: string | null;
           auto_key: string | null;
+          due_time: string | null;
+          milestone_id: string | null;
         };
         Insert: {
           id?: string;
@@ -2089,6 +2264,8 @@ export type Database = {
           secondary_assigned_to?: string | null;
           category?: string | null;
           auto_key?: string | null;
+          due_time?: string | null;
+          milestone_id?: string | null;
         };
         Update: {
           id?: string;
@@ -2112,12 +2289,15 @@ export type Database = {
           secondary_assigned_to?: string | null;
           category?: string | null;
           auto_key?: string | null;
+          due_time?: string | null;
+          milestone_id?: string | null;
         };
         Relationships: [
           { foreignKeyName: "tasks_assigned_to_fkey"; columns: ["assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_blocked_by_task_id_fkey"; columns: ["blocked_by_task_id"]; isOneToOne: false; referencedRelation: "tasks"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_client_id_fkey"; columns: ["client_id"]; isOneToOne: false; referencedRelation: "clients"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "tasks_milestone_id_fkey"; columns: ["milestone_id"]; isOneToOne: false; referencedRelation: "project_milestones"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] },
           { foreignKeyName: "tasks_secondary_assigned_to_fkey"; columns: ["secondary_assigned_to"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { MIN_PASSWORD, toAuthPassword } from "@/lib/auth-password";
 import { z } from "zod";
 import { notify } from "@/lib/push";
 import { profileSchema, settingsSchema } from "@/lib/validation/schemas";
@@ -47,7 +48,7 @@ export async function setMemberAccess(id: string, patch: { is_active?: boolean; 
 const memberSchema = z.object({
   email: z.email("כתובת אימייל לא תקינה").transform((v) => v.trim().toLowerCase()),
   full_name: z.string().trim().min(1, "יש להזין שם").max(120),
-  password: z.string().min(10, "סיסמה זמנית של 10 תווים לפחות").max(72),
+  password: z.string().min(MIN_PASSWORD, `סיסמה זמנית של ${MIN_PASSWORD} תווים לפחות`).max(72),
   role: z.enum(["admin", "member"]).default("admin"),
   team_role_id: z.uuid().optional().or(z.literal("").transform(() => undefined)),
 });
@@ -65,7 +66,7 @@ export async function addTeamMember(fd: FormData): Promise<ActionResult<null>> {
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
     email: p.data.email,
-    password: p.data.password,
+    password: toAuthPassword(p.data.password),
     email_confirm: true,
     user_metadata: { full_name: p.data.full_name },
   });
@@ -88,9 +89,9 @@ export async function changeMyPassword(fd: FormData): Promise<ActionResult<null>
   if (!s) return NOT_AUTHORIZED;
   const password = String(fd.get("password") ?? "");
   const confirm = String(fd.get("confirm") ?? "");
-  if (password.length < 10) return fail("הסיסמה צריכה להיות באורך 10 תווים לפחות.", { password: "לפחות 10 תווים" });
+  if (password.length < MIN_PASSWORD) return fail(`הסיסמה צריכה להיות באורך ${MIN_PASSWORD} תווים לפחות.`, { password: `לפחות ${MIN_PASSWORD} תווים` });
   if (password !== confirm) return fail("הסיסמאות לא תואמות.", { confirm: "לא תואם" });
-  const { error } = await s.supabase.auth.updateUser({ password });
+  const { error } = await s.supabase.auth.updateUser({ password: toAuthPassword(password) });
   if (error) return fail(`שינוי הסיסמה נכשל: ${error.message}`);
   return ok(null, "הסיסמה שונתה");
 }

@@ -8,9 +8,17 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "ניהול לידים, לקוחות, פרויקטים ומשימות של הסטודיו.",
     lang: "he",
     dir: "rtl",
-    start_url: "/today",
+    id: "/",
+    start_url: "/",
     scope: "/",
     display: "standalone",
+    orientation: "portrait",
+    shortcuts: [
+      { name: "היום", url: "/today" },
+      { name: "יומן", url: "/calendar" },
+      { name: "משימות", url: "/tasks" },
+      { name: "לקוחות", url: "/clients" },
+    ],
     background_color: "#f5f6f8",
     theme_color: "#1c2034",
     icons: [

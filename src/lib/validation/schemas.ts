@@ -25,6 +25,7 @@ import {
   goalStatus,
 } from "@/lib/domain/labels";
 import { PERMISSION_KEYS } from "@/lib/domain/permissions";
+import { EVENT_KIND_VALUES } from "@/lib/domain/calendar";
 
 // ---------------------------------------------------------------------------
 // Field helpers. Form values arrive as strings (or undefined when empty).
@@ -77,6 +78,11 @@ const optDate = isoDate.optional().transform((v) => v || null);
 
 const uuid = z.uuid("בחירה לא תקינה");
 const optUuid = uuid.optional().transform((v) => v || null);
+const optTime = z
+  .string()
+  .regex(/^\d{2}:\d{2}(:\d{2})?$/, "שעה לא תקינה")
+  .optional()
+  .transform((v) => (v ? v.slice(0, 5) : null));
 
 // ---------------------------------------------------------------------------
 // Leads
@@ -207,6 +213,8 @@ export const taskSchema = z
     client_id: optUuid,
     start_date: optDate,
     due_date: optDate,
+    due_time: optTime,
+    milestone_id: optUuid,
     priority: z.enum(taskPriority.values).default("medium"),
     status: z.enum(taskStatus.values).default("todo"),
     assigned_to: optUuid,
@@ -225,6 +233,57 @@ export const taskSchema = z
     }
   });
 export type TaskInput = z.infer<typeof taskSchema>;
+
+// ---------------------------------------------------------------------------
+// Calendar, timeline, payment schedule
+// ---------------------------------------------------------------------------
+export const eventSchema = z
+  .object({
+    title: required("כותרת", 300),
+    kind: z.enum(EVENT_KIND_VALUES).default("meeting"),
+    starts_on: isoDate,
+    ends_on: optDate,
+    all_day: z.enum(["on"]).optional().transform((v) => v === "on"),
+    start_time: optTime,
+    end_time: optTime,
+    assigned_to: optUuid,
+    client_id: optUuid,
+    project_id: optUuid,
+    description: optText(5000),
+    reminder_minutes: z
+      .string()
+      .optional()
+      .transform((v) => (v ? Number(v) : null))
+      .refine((v) => v === null || (Number.isInteger(v) && v >= 0 && v <= 20160), "תזכורת לא תקינה"),
+  })
+  .superRefine((v, ctx) => {
+    if (v.ends_on && v.ends_on < v.starts_on) ctx.addIssue({ code: "custom", path: ["ends_on"], message: "תאריך הסיום לפני ההתחלה" });
+    if (!v.all_day && v.start_time && v.end_time && (!v.ends_on || v.ends_on === v.starts_on) && v.end_time <= v.start_time) {
+      ctx.addIssue({ code: "custom", path: ["end_time"], message: "שעת הסיום לפני שעת ההתחלה" });
+    }
+  });
+
+export const MILESTONE_STATUS_VALUES = ["not_started", "in_progress", "waiting_client", "done"] as const;
+export const milestoneSchema = z
+  .object({
+    title: required("שם השלב", 200),
+    start_date: optDate,
+    end_date: optDate,
+    status: z.enum(MILESTONE_STATUS_VALUES).default("not_started"),
+    assigned_to: optUuid,
+    depends_on: optUuid,
+    notes: optText(3000),
+  })
+  .superRefine((v, ctx) => {
+    if (v.start_date && v.end_date && v.end_date < v.start_date) ctx.addIssue({ code: "custom", path: ["end_date"], message: "תאריך הסיום לפני ההתחלה" });
+  });
+
+export const scheduleSchema = z.object({
+  title: required("תיאור", 200),
+  amount: money("סכום").refine((n) => n > 0, "הסכום חייב להיות גדול מאפס"),
+  due_date: optDate,
+  notes: optText(1000),
+});
 
 // ---------------------------------------------------------------------------
 // Notes
@@ -389,12 +448,6 @@ export const approvalResponseSchema = z
 // ---------------------------------------------------------------------------
 // V3 — team, relationship, proposals
 // ---------------------------------------------------------------------------
-const optTime = z
-  .string()
-  .regex(/^\d{2}:\d{2}(:\d{2})?$/, "שעה לא תקינה")
-  .optional()
-  .transform((v) => (v ? v.slice(0, 5) : null));
-
 const weekdays = z
   .array(z.coerce.number().int().min(0).max(6))
   .max(7)

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { toAuthPassword } from "@/lib/auth-password";
 import { fail, type ActionResult } from "./result";
 
 const loginSchema = z.object({
@@ -18,7 +19,7 @@ export async function signIn(fd: FormData): Promise<ActionResult<{ next: string 
     return fail("בדוק את פרטי ההתחברות.", fieldErrors);
   }
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { error } = await supabase.auth.signInWithPassword({ email: parsed.data.email, password: toAuthPassword(parsed.data.password) });
   if (error) {
     if (error.code === "invalid_credentials") return fail("האימייל או הסיסמה שגויים.");
     if (error.code === "email_not_confirmed") return fail("כתובת האימייל עוד לא אומתה.");

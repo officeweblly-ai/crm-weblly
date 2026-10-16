@@ -763,6 +763,56 @@ async function main() {
     await rejects(`select * from partner_agreement_versions`, [], /permission denied/);
   });
 
+  await test("os: calendar events, milestones, payment schedule, deadline log", async () => {
+    await as("authenticated", OWNER);
+    const c = (await one<{ id: string }>(`insert into clients (name) values ('לקוח יומן') returning id`)).id;
+    const p = (await one<{ id: string }>(`insert into projects (client_id, name, total_price) values ($1, 'אתר יומן', 6000) returning id`, [c])).id;
+    // An event on a project inherits its client and is logged on the client's timeline.
+    const e = await one<{ client_id: string; start_time: string | null }>(
+      `insert into calendar_events (title, kind, starts_on, all_day, start_time, project_id) values ('פגישת אפיון', 'meeting', '2026-10-20', true, '10:00', $1) returning client_id, start_time`,
+      [p],
+    );
+    assert.equal(e.client_id, c);
+    assert.equal(e.start_time, null);
+    await rejects(`insert into calendar_events (title, starts_on, start_time, end_time) values ('x', '2026-10-20', '11:00', '10:00')`, [], /calendar_events_times/);
+    await rejects(`insert into calendar_events (title, starts_on, kind) values ('x', '2026-10-20', 'party')`, [], /check constraint/);
+    assert.equal((await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'event.created' and client_id = $1`, [c])).n, 1);
+
+    // Milestones: dependency within the project, completion stamp, activity.
+    const m1 = (await one<{ id: string }>(`insert into project_milestones (project_id, title, phase, start_date, end_date) values ($1, 'עיצוב', 'design', '2026-10-01', '2026-10-10') returning id`, [p])).id;
+    const m2 = (await one<{ id: string }>(`insert into project_milestones (project_id, title, phase, depends_on) values ($1, 'פיתוח', 'development', $2) returning id`, [p, m1])).id;
+    await rejects(`insert into project_milestones (project_id, title, end_date, start_date) values ($1, 'x', '2026-01-01', '2026-02-01')`, [p], /project_milestones_dates/);
+    const other = (await one<{ id: string }>(`insert into projects (client_id, name) values ($1, 'אחר') returning id`, [c])).id;
+    await rejects(`insert into project_milestones (project_id, title, depends_on) values ($1, 'x', $2)`, [other, m1], /same project/);
+    const done = await one<{ completed_at: string | null }>(`update project_milestones set status = 'done' where id = $1 returning completed_at`, [m1]);
+    assert.ok(done.completed_at);
+    assert.equal((await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'milestone.completed' and entity_id = $1`, [m1])).n, 1);
+    const t = await one<{ milestone_id: string; due_time: string }>(`insert into tasks (title, project_id, milestone_id, due_date, due_time) values ('מסך בית', $1, $2, '2026-10-12', '09:30') returning milestone_id, due_time`, [p, m2]);
+    assert.equal(t.milestone_id, m2);
+    assert.equal(t.due_time, "09:30:00");
+    await db.query(`delete from project_milestones where id = $1`, [m2]);
+    assert.equal((await one<{ n: number }>(`select count(*)::int n from tasks where title = 'מסך בית' and milestone_id is null`)).n, 1);
+
+    // Schedule rows point at real payments; deleting the payment re-opens the row.
+    const s = (await one<{ id: string }>(`insert into payment_schedule (project_id, title, amount, due_date) values ($1, 'מקדמה', 2000, '2026-10-15') returning id`, [p])).id;
+    const pay = (await one<{ id: string }>(`insert into payments (project_id, amount, paid_at, method, kind) values ($1, 2000, '2026-10-14', 'bit', 'deposit') returning id`, [p])).id;
+    await db.query(`update payment_schedule set payment_id = $1 where id = $2`, [pay, s]);
+    await db.query(`delete from payments where id = $1`, [pay]);
+    assert.equal((await one<{ payment_id: string | null }>(`select payment_id from payment_schedule where id = $1`, [s])).payment_id, null);
+    await rejects(`insert into payment_schedule (project_id, title, amount) values ($1, 'x', 0)`, [p], /check constraint/);
+
+    await db.query(`update projects set deadline = '2026-11-30' where id = $1`, [p]);
+    assert.equal((await one<{ n: number }>(`select count(*)::int n from activity_logs where type = 'project.deadline_changed' and project_id = $1`, [p])).n, 1);
+    await db.query(`update leads set next_action = 'להתקשר' where id = $1`, [leadId]);
+
+    await as("anon");
+    await rejects(`select * from calendar_events`, [], /permission denied/);
+    await rejects(`select * from project_milestones`, [], /permission denied/);
+    await rejects(`select * from payment_schedule`, [], /permission denied/);
+    await as("authenticated", OWNER);
+    await db.query(`delete from clients where id = $1`, [c]);
+  });
+
   await test("deleting a client cascades cleanly (no FK errors from activity triggers)", async () => {
     await as("authenticated", OWNER);
     await db.query(`delete from clients where id = $1`, [clientId]);

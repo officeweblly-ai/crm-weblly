@@ -29,6 +29,16 @@
   --info-soft: #e9f0f7;
   --focus: #3346c4;
 
+  /* Calendar / timeline families — five muted hues, always beside text. */
+  --k-meet: #3346c4;
+  --k-work: #5d6676;
+  --k-date: #b0472f;
+  --k-money: #1d7a52;
+  --k-client: #7354a6;
+
+  --sidebar-w: 232px;
+  --sidebar-w-collapsed: 64px;
+
   --shadow-1: 0 1px 2px rgb(20 24 36 / 0.04), 0 1px 1px rgb(20 24 36 / 0.03);
   --shadow-2: 0 1px 2px rgb(20 24 36 / 0.05), 0 4px 12px -2px rgb(20 24 36 / 0.07);
   --shadow-3: 0 2px 4px rgb(20 24 36 / 0.06), 0 16px 40px -8px rgb(20 24 36 / 0.18);
@@ -55,6 +65,11 @@
   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-k-meet: var(--k-meet);
+  --color-k-work: var(--k-work);
+  --color-k-date: var(--k-date);
+  --color-k-money: var(--k-money);
+  --color-k-client: var(--k-client);
 
   --font-sans: var(--font-plex), "Arial Hebrew", system-ui, sans-serif;
   /* One family everywhere (UI, headings, questionnaires). */
@@ -91,6 +106,7 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    overflow-x: clip;
     text-rendering: optimizeLegibility;
   }
 
@@ -148,6 +164,29 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--line-strong) transparent;
+  }
+}
+
+@layer components {
+  /* Hairline grid used by the month board, calendar and timeline. */
+  .grid-hair {
+    background-color: var(--line);
+    gap: 1px;
+  }
+  .kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding-inline: 0.25rem;
+    border: 1px solid var(--line-strong);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1;
+    color: var(--ink-3);
+    background: var(--surface);
   }
 }
 

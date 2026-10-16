@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test:db": "tsx supabase/tests/db.test.ts",
-    "test:unit": "tsx --test src/lib/domain/forms.test.ts src/lib/work-engine.test.ts src/lib/domain/expenses.test.ts src/lib/domain/partners.test.ts",
+    "test:unit": "tsx --test src/lib/domain/forms.test.ts src/lib/work-engine.test.ts src/lib/domain/expenses.test.ts src/lib/domain/partners.test.ts src/lib/domain/calendar.test.ts src/lib/domain/timeline.test.ts",
     "db:types": "tsx scripts/gen-db-types.ts",
     "seed": "tsx scripts/seed.ts all",
     "seed:templates": "tsx scripts/seed.ts templates",

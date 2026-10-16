@@ -7,6 +7,7 @@
 import { config } from "dotenv";
 import { createInterface } from "node:readline";
 import { createClient } from "@supabase/supabase-js";
+import { toAuthPassword } from "../src/lib/auth-password";
 
 config({ path: ".env.local" });
 config();
@@ -47,8 +48,8 @@ async function main() {
   const p1 = await askHidden("סיסמה חדשה (לא תוצג על המסך): ");
   const p2 = await askHidden("שוב, לאימות: ");
   if (p1 !== p2) return void console.error("הסיסמאות לא תואמות. לא שונה דבר.");
-  if (p1.length < 10) return void console.error("צריך לפחות 10 תווים. לא שונה דבר.");
-  const { error } = await db.auth.admin.updateUserById(profile.id, { password: p1 });
+  if (p1.length < 5) return void console.error("צריך לפחות 5 תווים. לא שונה דבר.");
+  const { error } = await db.auth.admin.updateUserById(profile.id, { password: toAuthPassword(p1) });
   if (error) throw error;
   console.log("✓ הסיסמה שונתה. אפשר להתחבר עם הסיסמה החדשה.");
 }

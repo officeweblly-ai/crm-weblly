@@ -214,7 +214,7 @@ Patterns to follow:
 `NEXT_PUBLIC_SITE_URL`, `SUPABASE_DB_URL` (direct/pooler connection string, only for scripts).
 
 Migrations are tracked in `internal.app_migrations`. Apply new ones with `npm run db:migrate`.
-Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications, 1000 v3_enums, 1100 v3_daily_workflow, 1200 v4_business, 1300 partnership_signing.
+Applied so far on production: 0100 schema, 0200 logic, 0300 security, 0400 social_and_automation, 0500 duplicate_max_choices, 0600 contract_generator, 0700 task_statuses, 0800 v2_upgrade, 0900 push_notifications, 1000 v3_enums, 1100 v3_daily_workflow, 1200 v4_business, 1300 partnership_signing, 1400 operating_system.
 **Network note:** the direct host `db.<ref>.supabase.co` is IPv6-only and does not resolve on IPv4-only networks
 (`getaddrinfo ENOTFOUND`). Use the Session pooler instead: user `postgres.<ref>`, host
 `aws-0-ap-northeast-1.pooler.supabase.com`, port 5432 (same password) — e.g. `SUPABASE_DB_URL=… npm run db:migrate`.
@@ -242,6 +242,9 @@ npm run lint && npx tsc --noEmit && npm run test:db && npm run test:unit && npx 
   `vercel.json` pins functions to `hnd1` (Tokyo) so server↔DB latency is ~2 ms. If the DB is ever moved to
   Frankfurt (recommended for Israeli users), change `vercel.json` regions to `fra1`.
 - Staff: yanimizrahi@gmail.com (owner), office.weblly@gmail.com (admin).
+- **Passwords:** minimum 5 characters (owner's request). Supabase requires 6, so `src/lib/auth-password.ts`
+  (`toAuthPassword`) pads passwords shorter than 6 with a fixed suffix on create / change / sign-in. Every auth call
+  that sends a password must go through it; 6+ character passwords are unchanged.
 - `npm run set-password -- <email>` sets a password with hidden terminal input (never pass passwords in chat).
 - Docs for the owner: `docs/מדריך-למערכת-weblly.pdf` (built from `docs/guide.html` + `docs/shots/`),
   `docs/תסריט-טיקטוק.pdf` (from `docs/tiktok-script.md`). Rebuild with headless Chrome `--print-to-pdf`.

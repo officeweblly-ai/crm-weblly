@@ -1,29 +1,41 @@
+import { cookies } from "next/headers";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { MobileNav, Sidebar, TopBar } from "@/components/shell/nav";
+import { AppShell } from "@/components/shell/nav";
 import { AppPrompt } from "@/components/shell/push-setup";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const viewer = await requireStaff();
   const supabase = await createClient();
-  const [{ data: settings }, { count: unread }] = await Promise.all([
+  const [{ data: settings }, { count: unread }, { data: staff }, { data: clients }, { data: projects }, jar] = await Promise.all([
     supabase.from("workspace_settings").select("business_name").maybeSingle(),
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", viewer.userId).is("read_at", null),
+    supabase.from("profiles").select("id, full_name, email").eq("is_active", true).order("full_name"),
+    supabase.from("clients").select("id, name, business_name").not("status", "in", "(archived)").order("name").limit(500),
+    supabase.from("projects").select("id, name, client_id").neq("status", "completed").order("updated_at", { ascending: false }).limit(300),
+    cookies(),
   ]);
   const businessName = settings?.business_name ?? "הסטודיו";
   const allowed = viewer.access.all ? ("all" as const) : [...viewer.access.allowed];
+  // Options for the global "+ משימה" / "+ אירוע" forms.
+  const options = {
+    me: viewer.userId,
+    staff: (staff ?? []).map((p) => ({ value: p.id, label: p.full_name || p.email })),
+    clients: (clients ?? []).map((c) => ({ value: c.id, label: c.business_name ? `${c.name} · ${c.business_name}` : c.name })),
+    projects: (projects ?? []).map((p) => ({ value: p.id, label: p.name, clientId: p.client_id })),
+  };
 
   return (
-    <div className="min-h-dvh">
-      <Sidebar businessName={businessName} userName={viewer.profile.full_name} email={viewer.email} allowed={allowed} />
-      <div className="lg:ps-60 print:ps-0">
-        <TopBar businessName={businessName} allowed={allowed} unread={unread ?? 0} />
-        <main id="main" className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pb-12 lg:pt-8 print:max-w-none print:p-0">
-          <AppPrompt />
-          {children}
-        </main>
-      </div>
-      <MobileNav businessName={businessName} userName={viewer.profile.full_name} email={viewer.email} allowed={allowed} />
-    </div>
+    <AppShell
+      businessName={businessName}
+      user={{ id: viewer.userId, name: viewer.profile.full_name, email: viewer.email, color: viewer.profile.avatar_color }}
+      allowed={allowed}
+      unread={unread ?? 0}
+      collapsed={jar.get("sidebar")?.value === "collapsed"}
+      options={options}
+    >
+      <AppPrompt />
+      {children}
+    </AppShell>
   );
 }
